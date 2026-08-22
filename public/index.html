@@ -1,3 +1,37 @@
 <!doctype html>
-<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Orla</title></head>
-<body><h1>Orla</h1><p>PWA shell — coming in Phase 1.</p></body></html>
+<html lang="en">
+	<head>
+		<meta charset="utf-8" />
+		<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+		<title>Orla</title>
+		<meta name="description" content="Orla — a personal assistant that lives at the edge." />
+		<meta name="theme-color" content="#2f5d50" />
+		<link rel="manifest" href="manifest.webmanifest" />
+		<link rel="apple-touch-icon" href="icons/icon-192.png" />
+		<meta name="apple-mobile-web-app-capable" content="yes" />
+		<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+		<meta name="apple-mobile-web-app-title" content="Orla" />
+		<link rel="stylesheet" href="styles.css" />
+	</head>
+	<body>
+		<noscript>Orla needs JavaScript enabled to run.</noscript>
+
+		<div id="signed-out" hidden>
+			<p>Signed out — <a href="/">reload</a></p>
+		</div>
+
+		<div id="update-banner" hidden>
+			<p>Updated — <button type="button" id="update-reload">reload</button></p>
+		</div>
+
+		<header class="tabbar" role="tablist" aria-label="Orla sections">
+			<a href="#capture" class="tab" data-tab="capture" role="tab">Capture</a>
+			<a href="#chat" class="tab" data-tab="chat" role="tab">Chat</a>
+			<a href="#notes" class="tab" data-tab="notes" role="tab">Notes</a>
+		</header>
+
+		<main id="main"></main>
+
+		<script type="module" src="app.js"></script>
+	</body>
+</html>
