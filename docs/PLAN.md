@@ -68,8 +68,8 @@ starts only after Phase 1 is in daily use.
 | F4 morning brief + Web Push | done | deterministic brief, no LLM; VAPID keys via `npm run vapid` |
 | F6 cost dashboard | done | Costs tab |
 | F7 journal views | done | FTS5 over organized notes; export |
-| F5 reminders | in progress | Scheduler DO alarm, chat "remind me…" pre-step |
-| Memory Option A | next | `memory_facts`, user-editable, rendered into cached prefix |
+| F5 reminders | done | Scheduler DO alarm, chat "remind me…" pre-step |
+| Memory Option A | done | nightly pass proposes, user confirms; active facts only in prefix, 1500-char cap |
 
 Deploy checklist after pulling: `npm run vapid` → public key into `wrangler.jsonc`, private via
 `wrangler secret put VAPID_PRIVATE_KEY`; `wrangler d1 migrations apply orla --remote`; `wrangler deploy`.

@@ -185,6 +185,7 @@ describe("Scheduler#alarm", () => {
 			title: "Reminder",
 			body: `water plants ${marker}`,
 			url: "/#brief",
+			tag: "reminder",
 		});
 
 		const row = await env.ORLA_DB.prepare("SELECT status, fired_at FROM reminders WHERE id = ?")

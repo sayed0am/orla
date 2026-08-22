@@ -113,6 +113,7 @@ describe("validateOutput", () => {
 			action_items: [],
 			attendees: [],
 			decisions: [],
+			memory_candidates: [],
 		});
 	});
 

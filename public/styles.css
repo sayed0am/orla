@@ -710,6 +710,101 @@ input[type="text"] {
 	margin-top: 0.5rem;
 }
 
+/* Memory (PRD §8 Option A) */
+.memory-subheading {
+	font-weight: 600;
+	color: var(--muted);
+	font-size: 0.8rem;
+	text-transform: uppercase;
+	margin: 0.75rem 0 0.4rem;
+}
+
+.memory-subheading:first-child {
+	margin-top: 0;
+}
+
+.memory-row {
+	display: flex;
+	align-items: center;
+	gap: 0.6rem;
+	background: var(--surface);
+	border: 1px solid var(--border);
+	border-radius: 10px;
+	padding: 0.6rem 0.8rem;
+	margin-bottom: 0.5rem;
+}
+
+.memory-text {
+	flex: 1;
+	min-width: 0;
+	word-break: break-word;
+	text-align: left;
+}
+
+.memory-text-editable {
+	background: none;
+	border: none;
+	color: inherit;
+	font: inherit;
+	padding: 0;
+	cursor: text;
+}
+
+.memory-edit-input {
+	flex: 1;
+	min-width: 0;
+}
+
+.memory-actions {
+	display: flex;
+	gap: 0.4rem;
+	flex-shrink: 0;
+}
+
+.memory-actions button {
+	min-height: auto;
+	padding: 0.35rem 0.6rem;
+	font-size: 0.85rem;
+}
+
+.memory-add-row {
+	display: flex;
+	gap: 0.5rem;
+	margin-top: 0.5rem;
+}
+
+.memory-add-row input {
+	flex: 1;
+	min-width: 0;
+}
+
+.memory-preview {
+	margin-top: 1rem;
+}
+
+.memory-preview summary {
+	cursor: pointer;
+	font-weight: 600;
+	color: var(--muted);
+	font-size: 0.85rem;
+}
+
+.memory-preview-body {
+	margin-top: 0.5rem;
+}
+
+.memory-preview-block {
+	background: var(--surface);
+	border: 1px solid var(--border);
+	border-radius: 10px;
+	padding: 0.75rem;
+	white-space: pre-wrap;
+	word-break: break-word;
+	font-family: inherit;
+	font-size: 0.85rem;
+	margin: 0;
+}
+
 /* Journal */
 .journal-view {
 	overflow-y: auto;

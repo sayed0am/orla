@@ -19,6 +19,14 @@ import {
 	handleJournalSearch,
 } from "./routes/journal";
 import {
+	handleMemoryCreate,
+	handleMemoryDelete,
+	handleMemoryList,
+	handleMemoryPreview,
+	handleMemoryUpdate,
+	MEMORY_FACT_PATH_RE,
+} from "./routes/memory";
+import {
 	handlePushSubscribe,
 	handlePushTest,
 	handlePushUnsubscribe,
@@ -206,6 +214,30 @@ export default {
 
 		if (url.pathname === "/api/export" && request.method === "GET") {
 			return handleExport(env);
+		}
+
+		if (url.pathname === "/api/memory/preview" && request.method === "GET") {
+			return handleMemoryPreview(env);
+		}
+
+		if (url.pathname === "/api/memory") {
+			if (request.method === "GET") {
+				return handleMemoryList(request, env);
+			}
+			if (request.method === "POST") {
+				return handleMemoryCreate(request, env);
+			}
+		}
+
+		const memoryFactMatch = MEMORY_FACT_PATH_RE.exec(url.pathname);
+		if (memoryFactMatch) {
+			const id = memoryFactMatch[1] as string;
+			if (request.method === "PATCH") {
+				return handleMemoryUpdate(request, env, id);
+			}
+			if (request.method === "DELETE") {
+				return handleMemoryDelete(env, id);
+			}
 		}
 
 		if (url.pathname === "/api/push/subscribe") {

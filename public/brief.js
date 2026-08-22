@@ -78,6 +78,8 @@ export function mountBrief(root) {
 		<div id="action-items-body"></div>
 		<h3>Notifications</h3>
 		<div id="push-body"></div>
+		<h3>Memory</h3>
+		<div id="memory-body"></div>
 	`;
 	root.appendChild(view);
 
@@ -87,6 +89,7 @@ export function mountBrief(root) {
 	const briefBody = view.querySelector("#brief-body");
 	const actionItemsBody = view.querySelector("#action-items-body");
 	const pushBody = view.querySelector("#push-body");
+	const memoryBody = view.querySelector("#memory-body");
 
 	let destroyed = false;
 	let currentDate = todayUtc();
@@ -482,9 +485,321 @@ export function mountBrief(root) {
 		}
 	}
 
+	// --- Memory (PRD §8 Option A) ---
+
+	function memoryProposedRow(fact) {
+		const row = document.createElement("div");
+		row.className = "memory-row";
+
+		const text = document.createElement("div");
+		text.className = "memory-text";
+		text.textContent = fact.text;
+		row.appendChild(text);
+
+		const actions = document.createElement("div");
+		actions.className = "memory-actions";
+
+		const keepButton = document.createElement("button");
+		keepButton.type = "button";
+		keepButton.textContent = "✓ Keep";
+		keepButton.addEventListener("click", () => updateMemoryStatus(fact.id, "active", row));
+		actions.appendChild(keepButton);
+
+		const discardButton = document.createElement("button");
+		discardButton.type = "button";
+		discardButton.textContent = "✕ Discard";
+		discardButton.addEventListener("click", () => discardMemoryFact(fact.id, row));
+		actions.appendChild(discardButton);
+
+		row.appendChild(actions);
+		return row;
+	}
+
+	function startEditingMemory(row, fact) {
+		row.innerHTML = "";
+		const input = document.createElement("input");
+		input.type = "text";
+		input.className = "memory-edit-input";
+		input.value = fact.text;
+		input.maxLength = 200;
+		row.appendChild(input);
+		input.focus();
+		input.setSelectionRange(input.value.length, input.value.length);
+
+		let settled = false;
+
+		async function save() {
+			if (settled) {
+				return;
+			}
+			settled = true;
+			const newText = input.value.trim();
+			if (newText.length === 0 || newText === fact.text) {
+				if (!destroyed) {
+					await loadMemory();
+				}
+				return;
+			}
+			try {
+				const res = await apiFetch(`/api/memory/${fact.id}`, {
+					method: "PATCH",
+					headers: { "content-type": "application/json" },
+					body: JSON.stringify({ text: newText }),
+				});
+				if (!res.ok) {
+					throw new Error(`http ${res.status}`);
+				}
+			} catch (err) {
+				console.error("brief: failed to edit memory fact", err);
+			} finally {
+				if (!destroyed) {
+					await loadMemory();
+				}
+			}
+		}
+
+		input.addEventListener("blur", save);
+		input.addEventListener("keydown", (event) => {
+			if (event.key === "Enter") {
+				input.blur();
+			} else if (event.key === "Escape") {
+				settled = true;
+				if (!destroyed) {
+					loadMemory();
+				}
+			}
+		});
+	}
+
+	function memoryActiveRow(fact) {
+		const row = document.createElement("div");
+		row.className = "memory-row";
+
+		const textButton = document.createElement("button");
+		textButton.type = "button";
+		textButton.className = "memory-text memory-text-editable";
+		textButton.textContent = fact.text;
+		textButton.addEventListener("click", () => startEditingMemory(row, fact));
+		row.appendChild(textButton);
+
+		const actions = document.createElement("div");
+		actions.className = "memory-actions";
+
+		const archiveButton = document.createElement("button");
+		archiveButton.type = "button";
+		archiveButton.textContent = "Archive";
+		archiveButton.addEventListener("click", () => updateMemoryStatus(fact.id, "archived", row));
+		actions.appendChild(archiveButton);
+
+		row.appendChild(actions);
+		return row;
+	}
+
+	async function updateMemoryStatus(id, status, row) {
+		const parent = row.parentElement;
+		const nextSibling = row.nextSibling;
+		row.remove();
+		try {
+			const res = await apiFetch(`/api/memory/${id}`, {
+				method: "PATCH",
+				headers: { "content-type": "application/json" },
+				body: JSON.stringify({ status }),
+			});
+			if (!res.ok) {
+				throw new Error(`http ${res.status}`);
+			}
+			if (!destroyed) {
+				await loadMemory();
+			}
+		} catch (err) {
+			console.error("brief: failed to update memory fact", err);
+			if (!destroyed && parent) {
+				parent.insertBefore(row, nextSibling);
+			}
+		}
+	}
+
+	async function discardMemoryFact(id, row) {
+		const parent = row.parentElement;
+		const nextSibling = row.nextSibling;
+		row.remove();
+		try {
+			const res = await apiFetch(`/api/memory/${id}`, { method: "DELETE" });
+			if (!res.ok && res.status !== 404) {
+				throw new Error(`http ${res.status}`);
+			}
+			if (!destroyed) {
+				await loadMemory();
+			}
+		} catch (err) {
+			console.error("brief: failed to discard memory fact", err);
+			if (!destroyed && parent) {
+				parent.insertBefore(row, nextSibling);
+			}
+		}
+	}
+
+	async function loadMemoryPreviewInto(container) {
+		container.innerHTML = `<p class="hint">Loading…</p>`;
+		try {
+			const res = await apiFetch("/api/memory/preview");
+			if (!res.ok) {
+				throw new Error(`http ${res.status}`);
+			}
+			const data = await res.json();
+			if (destroyed) {
+				return;
+			}
+			container.innerHTML = "";
+			const pre = document.createElement("pre");
+			pre.className = "memory-preview-block";
+			pre.textContent = data.block.length > 0 ? data.block : "(empty — no active facts)";
+			container.appendChild(pre);
+			const count = document.createElement("p");
+			count.className = "hint";
+			count.textContent = `${data.chars} characters`;
+			container.appendChild(count);
+		} catch (err) {
+			console.error("brief: failed to load memory preview", err);
+			if (!destroyed) {
+				container.innerHTML = `<p class="hint">Couldn't load the preview.</p>`;
+			}
+		}
+	}
+
+	function memoryAddRow() {
+		const row = document.createElement("div");
+		row.className = "memory-add-row";
+
+		const input = document.createElement("input");
+		input.type = "text";
+		input.placeholder = "Add a fact…";
+		input.maxLength = 200;
+
+		const button = document.createElement("button");
+		button.type = "button";
+		button.className = "primary";
+		button.textContent = "Add";
+
+		async function submit() {
+			const text = input.value.trim();
+			if (text.length === 0) {
+				return;
+			}
+			button.disabled = true;
+			try {
+				const res = await apiFetch("/api/memory", {
+					method: "POST",
+					headers: { "content-type": "application/json" },
+					body: JSON.stringify({ text }),
+				});
+				if (!res.ok) {
+					throw new Error(`http ${res.status}`);
+				}
+				if (!destroyed) {
+					await loadMemory();
+				}
+			} catch (err) {
+				console.error("brief: failed to add memory fact", err);
+				if (!destroyed) {
+					button.disabled = false;
+				}
+			}
+		}
+
+		button.addEventListener("click", submit);
+		input.addEventListener("keydown", (event) => {
+			if (event.key === "Enter") {
+				submit();
+			}
+		});
+
+		row.appendChild(input);
+		row.appendChild(button);
+		return row;
+	}
+
+	function memoryPreviewDetails() {
+		const details = document.createElement("details");
+		details.className = "memory-preview";
+
+		const summary = document.createElement("summary");
+		summary.textContent = "What Orla sees";
+		details.appendChild(summary);
+
+		const previewBody = document.createElement("div");
+		previewBody.className = "memory-preview-body";
+		details.appendChild(previewBody);
+
+		details.addEventListener("toggle", () => {
+			if (details.open) {
+				loadMemoryPreviewInto(previewBody);
+			}
+		});
+
+		return details;
+	}
+
+	async function loadMemory() {
+		memoryBody.innerHTML = `<p class="hint">Loading…</p>`;
+		let res;
+		try {
+			res = await apiFetch("/api/memory");
+		} catch (err) {
+			console.error("brief: failed to load memory", err);
+			if (!destroyed) {
+				memoryBody.innerHTML = `<p class="hint">Couldn't load memory.</p>`;
+			}
+			return;
+		}
+		if (destroyed) {
+			return;
+		}
+		if (!res.ok) {
+			memoryBody.innerHTML = `<p class="hint">Couldn't load memory.</p>`;
+			return;
+		}
+
+		const data = await res.json();
+		const facts = data.facts ?? [];
+		const proposed = facts.filter((f) => f.status === "proposed");
+		const active = facts.filter((f) => f.status === "active");
+
+		memoryBody.innerHTML = "";
+
+		if (proposed.length > 0) {
+			const heading = document.createElement("div");
+			heading.className = "memory-subheading";
+			heading.textContent = "Proposed";
+			memoryBody.appendChild(heading);
+			for (const fact of proposed) {
+				memoryBody.appendChild(memoryProposedRow(fact));
+			}
+		}
+
+		const activeHeading = document.createElement("div");
+		activeHeading.className = "memory-subheading";
+		activeHeading.textContent = "Active";
+		memoryBody.appendChild(activeHeading);
+		if (active.length === 0) {
+			const p = document.createElement("p");
+			p.className = "hint";
+			p.textContent = "No facts yet.";
+			memoryBody.appendChild(p);
+		} else {
+			for (const fact of active) {
+				memoryBody.appendChild(memoryActiveRow(fact));
+			}
+		}
+
+		memoryBody.appendChild(memoryAddRow());
+		memoryBody.appendChild(memoryPreviewDetails());
+	}
+
 	loadBrief();
 	loadActionItems();
 	loadPushState();
+	loadMemory();
 
 	return function unmount() {
 		destroyed = true;

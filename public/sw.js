@@ -135,7 +135,7 @@ self.addEventListener("push", (event) => {
 			data: { url: data.url },
 			icon: "/icons/icon-192.png",
 			badge: "/icons/icon-192.png",
-			tag: "orla",
+			tag: data.tag ?? "orla",
 		}),
 	);
 });

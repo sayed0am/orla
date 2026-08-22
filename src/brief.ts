@@ -265,6 +265,7 @@ export async function runMorningBrief(
 			title: "Good morning",
 			body: `${todayCount} due today, ${overdueCount} overdue`.slice(0, PUSH_BODY_MAX_LENGTH),
 			url: "/#brief",
+			tag: "brief",
 		});
 
 		const briefPush = await broadcast(db, briefPayload, vapid, fetchImpl);
@@ -276,6 +277,7 @@ export async function runMorningBrief(
 				title: "Orla needs attention",
 				body: `Nightly reorganization has failed ${inputs.reorg_health.consecutive_failures} times`,
 				url: "/#costs",
+				tag: "system",
 			});
 			const alertPush = await broadcast(db, alertPayload, vapid, fetchImpl);
 			pushed += alertPush.sent;

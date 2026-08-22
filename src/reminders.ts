@@ -213,7 +213,7 @@ export class Scheduler extends DurableObject<Env> {
 				try {
 					await broadcast(
 						db,
-						JSON.stringify({ title: "Reminder", body: row.text, url: "/#brief" }),
+						JSON.stringify({ title: "Reminder", body: row.text, url: "/#brief", tag: "reminder" }),
 						vapid,
 						fetchImpl,
 					);
