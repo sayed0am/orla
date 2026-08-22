@@ -55,7 +55,7 @@
 		// AI Gateway URL is substituted per-deployment later.
 		"OPENROUTER_BASE_URL": "https://openrouter.ai/api/v1",
 		// Web Push (F4): public key is safe to ship as a var; generate both with `npm run vapid`.
-		"VAPID_PUBLIC_KEY": "",
+		"VAPID_PUBLIC_KEY": "BFiTtECugVbKd2TEDE5gvJEb8FLIzijlbXizhMhDMUvGeneIejPYTtL6MhYidXFwZBRpVxAWs-pMl4rset_wfLw",
 		"VAPID_SUBJECT": "mailto:sayed0am@gmail.com"
 	}
 	// Secrets (wrangler secret put): OPENROUTER_API_KEY, VAPID_PRIVATE_KEY
