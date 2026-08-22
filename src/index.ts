@@ -1,16 +1,17 @@
-import { DurableObject } from "cloudflare:workers";
 import { requireAuth } from "./auth";
 import { insertRawNote, listRawNotes } from "./notes";
+import {
+	handleCreateConversation,
+	handleGetMessages,
+	handleListConversations,
+	handlePostMessage,
+	MESSAGES_PATH_RE,
+} from "./routes/conversations";
+
+export { Conversation } from "./conversation";
 
 const CLIENT_ID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 const MAX_BODY_LENGTH = 20_000;
-
-/** Per-conversation state: chat turns, SSE streaming, reminder alarms (PRD §5). */
-export class Conversation extends DurableObject<Env> {
-	async fetch(_request: Request): Promise<Response> {
-		return new Response("not implemented", { status: 501 });
-	}
-}
 
 async function handleCreateNote(request: Request, env: Env): Promise<Response> {
 	let payload: unknown;
@@ -84,6 +85,26 @@ export default {
 			}
 			if (request.method === "GET") {
 				return handleListNotes(request, env);
+			}
+		}
+
+		if (url.pathname === "/api/conversations") {
+			if (request.method === "POST") {
+				return handleCreateConversation(env);
+			}
+			if (request.method === "GET") {
+				return handleListConversations(env);
+			}
+		}
+
+		const messagesMatch = MESSAGES_PATH_RE.exec(url.pathname);
+		if (messagesMatch) {
+			const id = messagesMatch[1] as string;
+			if (request.method === "GET") {
+				return handleGetMessages(env, id);
+			}
+			if (request.method === "POST") {
+				return handlePostMessage(request, env, id);
 			}
 		}
 

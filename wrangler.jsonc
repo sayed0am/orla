@@ -41,7 +41,9 @@
 		"ASSISTANT_NAME": "Orla",
 		"LLM_MODEL": "deepseek/deepseek-v4-flash-0731",
 		"ACCESS_TEAM_DOMAIN": "",
-		"ACCESS_AUD": ""
+		"ACCESS_AUD": "",
+		// AI Gateway URL is substituted per-deployment later.
+		"OPENROUTER_BASE_URL": "https://openrouter.ai/api/v1"
 	}
 	// Secrets (wrangler secret put): OPENROUTER_API_KEY
 }
