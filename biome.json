@@ -1,0 +1,8 @@
+{
+	"$schema": "./node_modules/@biomejs/biome/configuration_schema.json",
+	"vcs": { "enabled": true, "clientKind": "git", "useIgnoreFile": true },
+	"files": { "includes": ["**", "!worker-configuration.d.ts", "!.wrangler"] },
+	"formatter": { "indentStyle": "tab", "lineWidth": 100 },
+	"linter": { "enabled": true, "rules": { "recommended": true } },
+	"javascript": { "formatter": { "quoteStyle": "double" } }
+}

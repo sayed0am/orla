@@ -1,0 +1,45 @@
+{
+	"$schema": "node_modules/wrangler/config-schema.json",
+	"name": "orla",
+	"main": "src/index.ts",
+	"compatibility_date": "2026-08-01",
+	"compatibility_flags": ["nodejs_compat"],
+	"observability": {
+		"enabled": true
+	},
+	"assets": {
+		"directory": "./public",
+		"binding": "ASSETS"
+	},
+	"d1_databases": [
+		{
+			"binding": "ORLA_DB",
+			"database_name": "orla",
+			"database_id": "0fbc25ef-2ca2-4c9a-84d4-b3a466531f93",
+			"migrations_dir": "migrations"
+		}
+	],
+	"durable_objects": {
+		"bindings": [
+			{
+				"name": "CONVERSATION",
+				"class_name": "Conversation"
+			}
+		]
+	},
+	"migrations": [
+		{
+			"tag": "v1",
+			"new_sqlite_classes": ["Conversation"]
+		}
+	],
+	"triggers": {
+		// 03:00 UTC nightly reorganization (F3); 06:00 UTC morning brief (F4)
+		"crons": ["0 3 * * *", "0 6 * * *"]
+	},
+	"vars": {
+		"ASSISTANT_NAME": "Orla",
+		"LLM_MODEL": "deepseek/deepseek-v4-flash-0731"
+	}
+	// Secrets (wrangler secret put): OPENROUTER_API_KEY
+}

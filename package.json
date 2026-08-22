@@ -1,0 +1,22 @@
+{
+	"name": "orla",
+	"version": "0.1.0",
+	"private": true,
+	"type": "module",
+	"scripts": {
+		"dev": "wrangler dev",
+		"deploy": "wrangler deploy",
+		"types": "wrangler types",
+		"check": "tsc --noEmit && tsc --noEmit -p test",
+		"lint": "biome check .",
+		"format": "biome format --write .",
+		"test": "vitest run"
+	},
+	"devDependencies": {
+		"@biomejs/biome": "2.5.10",
+		"@cloudflare/vitest-pool-workers": "0.9.14",
+		"typescript": "5.9.3",
+		"vitest": "3.2.7",
+		"wrangler": "4.125.0"
+	}
+}
