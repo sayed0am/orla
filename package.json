@@ -10,7 +10,8 @@
 		"check": "tsc --noEmit && tsc --noEmit -p test",
 		"lint": "biome check .",
 		"format": "biome format --write .",
-		"test": "vitest run"
+		"test": "vitest run",
+		"vapid": "node scripts/vapid.mjs"
 	},
 	"devDependencies": {
 		"@biomejs/biome": "2.5.10",

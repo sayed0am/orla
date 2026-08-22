@@ -1,6 +1,8 @@
 import { requireAuth } from "./auth";
+import { runMorningBrief } from "./brief";
 import { insertRawNote, listRawNotes } from "./notes";
 import { runReorganization } from "./reorganize";
+import { handleBriefGet, handleBriefRun } from "./routes/brief";
 import {
 	handleCreateConversation,
 	handleGetMessages,
@@ -9,10 +11,25 @@ import {
 	MESSAGES_PATH_RE,
 } from "./routes/conversations";
 import { handleCostSummary } from "./routes/costs";
+import {
+	handleActionItems,
+	handleActionItemUpdate,
+	handleExport,
+	handleJournalList,
+	handleJournalSearch,
+} from "./routes/journal";
+import {
+	handlePushSubscribe,
+	handlePushTest,
+	handlePushUnsubscribe,
+	handleVapidPublicKey,
+} from "./routes/push";
 
 export { Conversation } from "./conversation";
 
 const CLIENT_ID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
+const ACTION_ITEM_PATH_RE =
+	/^\/api\/action-items\/([0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12})$/i;
 const MAX_BODY_LENGTH = 20_000;
 
 async function handleCreateNote(request: Request, env: Env): Promise<Response> {
@@ -158,6 +175,53 @@ export default {
 		if (url.pathname === "/api/costs" && request.method === "GET")
 			return handleCostSummary(request, env);
 
+		if (url.pathname === "/api/journal" && request.method === "GET") {
+			return handleJournalList(request, env);
+		}
+
+		if (url.pathname === "/api/journal/search" && request.method === "GET") {
+			return handleJournalSearch(request, env);
+		}
+
+		if (url.pathname === "/api/action-items" && request.method === "GET") {
+			return handleActionItems(request, env);
+		}
+
+		const actionItemMatch = ACTION_ITEM_PATH_RE.exec(url.pathname);
+		if (actionItemMatch && request.method === "PATCH") {
+			const id = actionItemMatch[1] as string;
+			return handleActionItemUpdate(request, env, id);
+		}
+
+		if (url.pathname === "/api/export" && request.method === "GET") {
+			return handleExport(env);
+		}
+
+		if (url.pathname === "/api/push/subscribe") {
+			if (request.method === "POST") {
+				return handlePushSubscribe(request, env);
+			}
+			if (request.method === "DELETE") {
+				return handlePushUnsubscribe(request, env);
+			}
+		}
+
+		if (url.pathname === "/api/push/vapid-public-key" && request.method === "GET") {
+			return handleVapidPublicKey(env);
+		}
+
+		if (url.pathname === "/api/push/test" && request.method === "POST") {
+			return handlePushTest(env);
+		}
+
+		if (url.pathname === "/api/brief" && request.method === "GET") {
+			return handleBriefGet(request, env);
+		}
+
+		if (url.pathname === "/api/brief/run" && request.method === "POST") {
+			return handleBriefRun(env);
+		}
+
 		if (url.pathname.startsWith("/api/")) {
 			return Response.json({ error: "not found" }, { status: 404 });
 		}
@@ -177,6 +241,11 @@ export default {
 				break;
 			case "0 6 * * *":
 				// F4 morning brief
+				ctx.waitUntil(
+					runMorningBrief(env).catch((err) => {
+						console.error("scheduled morning brief crashed", err);
+					}),
+				);
 				break;
 		}
 	},
