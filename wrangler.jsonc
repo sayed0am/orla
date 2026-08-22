@@ -24,6 +24,10 @@
 			{
 				"name": "CONVERSATION",
 				"class_name": "Conversation"
+			},
+			{
+				"name": "SCHEDULER",
+				"class_name": "Scheduler"
 			}
 		]
 	},
@@ -31,6 +35,10 @@
 		{
 			"tag": "v1",
 			"new_sqlite_classes": ["Conversation"]
+		},
+		{
+			"tag": "v2",
+			"new_sqlite_classes": ["Scheduler"]
 		}
 	],
 	"triggers": {

@@ -69,7 +69,7 @@ export async function handlePostMessage(request: Request, env: Env, id: string):
 		return Response.json({ error: "body must be a JSON object" }, { status: 400 });
 	}
 
-	const { message } = payload as Record<string, unknown>;
+	const { message, tz_offset_minutes: tzOffsetMinutesRaw } = payload as Record<string, unknown>;
 	if (typeof message !== "string" || message.trim().length === 0) {
 		return Response.json({ error: "message must be a non-empty string" }, { status: 400 });
 	}
@@ -78,6 +78,9 @@ export async function handlePostMessage(request: Request, env: Env, id: string):
 			{ error: `message must be at most ${MAX_MESSAGE_LENGTH} characters` },
 			{ status: 400 },
 		);
+	}
+	if (tzOffsetMinutesRaw !== undefined && typeof tzOffsetMinutesRaw !== "number") {
+		return Response.json({ error: "tz_offset_minutes must be a number" }, { status: 400 });
 	}
 
 	if (!env.OPENROUTER_API_KEY) {
@@ -91,6 +94,7 @@ export async function handlePostMessage(request: Request, env: Env, id: string):
 		model: env.LLM_MODEL,
 		apiKey: env.OPENROUTER_API_KEY,
 		baseUrl: env.OPENROUTER_BASE_URL,
+		tzOffsetMinutes: tzOffsetMinutesRaw as number | undefined,
 	});
 
 	if (!result.ok) {

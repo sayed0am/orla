@@ -24,12 +24,23 @@ import {
 	handlePushUnsubscribe,
 	handleVapidPublicKey,
 } from "./routes/push";
+import {
+	handleCancelReminder,
+	handleCreateReminder,
+	handleListReminders,
+	handleRemindFromActionItem,
+} from "./routes/reminders";
 
 export { Conversation } from "./conversation";
+export { Scheduler } from "./reminders";
 
 const CLIENT_ID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 const ACTION_ITEM_PATH_RE =
 	/^\/api\/action-items\/([0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12})$/i;
+const ACTION_ITEM_REMIND_PATH_RE =
+	/^\/api\/action-items\/([0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12})\/remind$/i;
+const REMINDER_PATH_RE =
+	/^\/api\/reminders\/([0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12})$/i;
 const MAX_BODY_LENGTH = 20_000;
 
 async function handleCreateNote(request: Request, env: Env): Promise<Response> {
@@ -220,6 +231,27 @@ export default {
 
 		if (url.pathname === "/api/brief/run" && request.method === "POST") {
 			return handleBriefRun(env);
+		}
+
+		if (url.pathname === "/api/reminders") {
+			if (request.method === "GET") {
+				return handleListReminders(request, env);
+			}
+			if (request.method === "POST") {
+				return handleCreateReminder(request, env);
+			}
+		}
+
+		const reminderMatch = REMINDER_PATH_RE.exec(url.pathname);
+		if (reminderMatch && request.method === "DELETE") {
+			const id = reminderMatch[1] as string;
+			return handleCancelReminder(env, id);
+		}
+
+		const remindActionItemMatch = ACTION_ITEM_REMIND_PATH_RE.exec(url.pathname);
+		if (remindActionItemMatch && request.method === "POST") {
+			const id = remindActionItemMatch[1] as string;
+			return handleRemindFromActionItem(request, env, id);
 		}
 
 		if (url.pathname.startsWith("/api/")) {

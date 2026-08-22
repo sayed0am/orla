@@ -627,6 +627,90 @@ describe("runReorganization", () => {
 	});
 });
 
+describe("runReorganization — overlapping-run lock", () => {
+	it("fails immediately without touching raw notes when another run is genuinely 'running'", async () => {
+		const note = await insertRawNote({
+			body: "should not be touched while another run holds the lock",
+		});
+
+		const stuckRunId = crypto.randomUUID();
+		await env.ORLA_DB.prepare("INSERT INTO reorg_runs (id, status) VALUES (?, 'running')")
+			.bind(stuckRunId)
+			.run();
+
+		const result = await runReorganization(env, { batchSize: 25 });
+		expect(result).toEqual({
+			runId: result.runId,
+			status: "failed",
+			notesIn: 0,
+			notesOk: 0,
+			notesFailed: 0,
+		});
+
+		const row = await env.ORLA_DB.prepare(
+			"SELECT status, error, notes_in FROM reorg_runs WHERE id = ?",
+		)
+			.bind(result.runId)
+			.first<{ status: string; error: string | null; notes_in: number }>();
+		expect(row).toMatchObject({ status: "failed", error: "another run in progress", notes_in: 0 });
+
+		// The raw note was never even selected, let alone sent to the model.
+		const noteRow = await env.ORLA_DB.prepare("SELECT processed_at FROM raw_notes WHERE id = ?")
+			.bind(note.id)
+			.first<{ processed_at: string | null }>();
+		expect(noteRow?.processed_at).toBeNull();
+
+		// Clean up so the stuck row and the still-unprocessed note don't confuse later tests in this
+		// file (storage persists across the whole run — see vitest.config.ts).
+		await env.ORLA_DB.prepare(
+			"UPDATE reorg_runs SET status = 'failed', finished_at = ? WHERE id = ?",
+		)
+			.bind(new Date().toISOString(), stuckRunId)
+			.run();
+		await env.ORLA_DB.prepare("UPDATE raw_notes SET processed_at = ? WHERE id = ?")
+			.bind(new Date().toISOString(), note.id)
+			.run();
+	});
+
+	it("treats a 'running' row stuck for over 30 minutes as stale and proceeds instead of blocking on it", async () => {
+		const staleRunId = crypto.randomUUID();
+		await env.ORLA_DB.prepare(
+			"INSERT INTO reorg_runs (id, status, started_at) VALUES (?, 'running', datetime('now', '-40 minutes'))",
+		)
+			.bind(staleRunId)
+			.run();
+
+		const note = await insertRawNote({ body: "stale lock should not block this run" });
+		const { fetchImpl } = fakeCompleteJsonFetch((body) => ({
+			notes: extractInputIds(body).map((id) => ({
+				id,
+				type: "journal",
+				cleaned_text: "cleaned",
+				summary: "summary",
+				tags: [],
+				action_items: [],
+				attendees: [],
+				decisions: [],
+			})),
+		}));
+		setReorgFetchForTests(fetchImpl);
+
+		const result = await runReorganization(env, { batchSize: 25 });
+		expect(result.status).not.toBe("failed");
+		expect(result.notesIn).toBeGreaterThanOrEqual(1);
+
+		const staleRow = await env.ORLA_DB.prepare("SELECT status, error FROM reorg_runs WHERE id = ?")
+			.bind(staleRunId)
+			.first<{ status: string; error: string | null }>();
+		expect(staleRow).toEqual({ status: "failed", error: "superseded" });
+
+		const noteRow = await env.ORLA_DB.prepare("SELECT processed_at FROM raw_notes WHERE id = ?")
+			.bind(note.id)
+			.first<{ processed_at: string | null }>();
+		expect(noteRow?.processed_at).not.toBeNull();
+	});
+});
+
 describe("POST /api/reorganize/run", () => {
 	it("runs synchronously and returns 200 with the run result", async () => {
 		await insertRawNote({ body: "route wiring test note" });

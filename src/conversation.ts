@@ -6,8 +6,16 @@
 
 import { DurableObject } from "cloudflare:workers";
 import { logLlmCall } from "./cost";
-import { streamChat, type Usage } from "./llm";
+import { completeJson, streamChat, type Usage } from "./llm";
 import { buildMessages } from "./prompt";
+import {
+	buildReminderDetectionMessages,
+	formatReminderLocalTime,
+	normalizeReminderDetection,
+	REMINDER_TRIGGER_RE,
+	ReminderValidationError,
+	scheduleReminder,
+} from "./reminders";
 
 export type Turn = {
 	seq: number;
@@ -24,6 +32,8 @@ export type SendOpts = {
 	model: string;
 	apiKey: string;
 	baseUrl: string;
+	/** Minutes to add to UTC to get the user's local time, for F5 reminder-time resolution. */
+	tzOffsetMinutes?: number;
 };
 
 export type SendResult =
@@ -97,23 +107,86 @@ export class Conversation extends DurableObject<Env> {
 
 		this.ctx.storage.sql.exec("INSERT INTO turns (role, content) VALUES ('user', ?)", userMessage);
 
+		const fetchImpl = testLlmFetch ?? fetch;
+
+		// F5 — "remind me Thursday 3pm to…" (PRD F5). A cheap, regex-gated pre-step: NOT a general
+		// tool-calling loop, just one narrow `completeJson` extraction wired into this one call
+		// site (see src/reminders.ts's module doc comment). Scheduling here is an *acting* tool
+		// running with no tap-to-confirm, which the PRD's capability tiers (§12) otherwise require —
+		// a deliberate, documented trade-off: F5 explicitly makes chat-created reminders a P1
+		// feature, the assistant's reply (via `dynamicContext` below) always states what was
+		// scheduled, and `DELETE /api/reminders/:id` is the one-tap undo.
+		let dynamicContext: string | undefined;
+		let reminderEvent: { id: string; text: string; fire_at: string } | undefined;
+
+		if (REMINDER_TRIGGER_RE.test(userMessage)) {
+			try {
+				const now = new Date();
+				const detection = await completeJson<unknown>(
+					buildReminderDetectionMessages(userMessage, now, opts.tzOffsetMinutes ?? 0),
+					{
+						apiKey: opts.apiKey,
+						model: opts.model,
+						baseUrl: opts.baseUrl,
+						sessionId,
+						jobType: "chat",
+					},
+					fetchImpl,
+				);
+				await logLlmCall(this.env.ORLA_DB, {
+					jobType: "chat",
+					model: opts.model,
+					usage: detection.usage,
+				});
+
+				const parsed = normalizeReminderDetection(detection.value);
+				if (parsed?.is_reminder && parsed.fire_at !== null) {
+					try {
+						const reminder = await scheduleReminder(this.env, {
+							text: parsed.text.length > 0 ? parsed.text : userMessage,
+							fireAt: new Date(parsed.fire_at),
+							source: "chat",
+							sourceId: opts.conversationId,
+						});
+						reminderEvent = { id: reminder.id, text: reminder.text, fire_at: reminder.fire_at };
+						dynamicContext = `Reminder scheduled for ${formatReminderLocalTime(parsed.fire_at)}: "${reminder.text}"`;
+					} catch (err) {
+						const reason =
+							err instanceof ReminderValidationError
+								? err.message
+								: "could not schedule that reminder";
+						dynamicContext = `Reminder request was ambiguous: ${reason}; ask the user to clarify.`;
+					}
+				} else if (parsed?.is_reminder && parsed.ambiguous) {
+					dynamicContext = `Reminder request was ambiguous: ${parsed.ambiguous}; ask the user to clarify.`;
+				}
+			} catch {
+				// Extraction call failed outright (bad JSON, upstream error, etc.) — this is a
+				// best-effort side feature, so fall through to a normal reply rather than blocking
+				// the chat turn on it.
+			}
+		}
+
 		const messages = buildMessages({
 			assistantName: opts.assistantName,
 			memoryBlock: opts.memoryBlock,
 			history,
 			userMessage,
+			dynamicContext,
 		});
 
 		const { readable, writable } = new TransformStream<Uint8Array, Uint8Array>();
 		const writer = writable.getWriter();
 		const encoder = new TextEncoder();
-		const fetchImpl = testLlmFetch ?? fetch;
 
 		const run = async (): Promise<void> => {
 			let assistantText = "";
 			let usage: Usage | null = null;
 
 			try {
+				if (reminderEvent) {
+					await this.writeChunk(writer, encoder.encode(sseEvent("reminder", reminderEvent)));
+				}
 				for await (const event of streamChat(
 					messages,
 					{

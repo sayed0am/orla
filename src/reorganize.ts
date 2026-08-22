@@ -461,6 +461,31 @@ export async function runReorganization(
 	let notesFailed = 0;
 
 	try {
+		// A manual `/api/reorganize/run` call can overlap the nightly cron. Clean up any run that
+		// crashed hard enough to never reach its own `finished_at` update (stuck "running" for over
+		// 30 minutes is certainly dead, not just slow), then bail out if another run is still
+		// genuinely in progress rather than racing it over the same raw notes.
+		await db
+			.prepare(
+				"UPDATE reorg_runs SET status = 'failed', error = 'superseded' WHERE status = 'running' AND started_at < datetime('now', '-30 minutes')",
+			)
+			.run();
+
+		const runningCount = await db
+			.prepare("SELECT COUNT(*) AS n FROM reorg_runs WHERE status = 'running' AND id != ?")
+			.bind(runId)
+			.first<{ n: number }>();
+
+		if ((runningCount?.n ?? 0) >= 1) {
+			await db
+				.prepare(
+					"UPDATE reorg_runs SET finished_at = ?, status = 'failed', error = 'another run in progress' WHERE id = ?",
+				)
+				.bind(new Date().toISOString(), runId)
+				.run();
+			return { runId, status: "failed", notesIn: 0, notesOk: 0, notesFailed: 0 };
+		}
+
 		const rawNotes = await db
 			.prepare(
 				"SELECT id, body, created_at, private FROM raw_notes WHERE processed_at IS NULL ORDER BY created_at ASC LIMIT ?",

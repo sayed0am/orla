@@ -201,6 +201,10 @@ describe("broadcast", () => {
 			.first<{ last_success_at: string | null; failures: number }>();
 		expect(row?.last_success_at).not.toBeNull();
 		expect(row?.failures).toBe(0);
+
+		// Cleanup: a successful push leaves the row in place, so it doesn't ride along into later
+		// tests/other files that iterate the whole push_subscriptions table.
+		await env.ORLA_DB.prepare("DELETE FROM push_subscriptions WHERE id = ?").bind(id).run();
 	});
 
 	it("deletes a subscription immediately when the push service reports it gone", async () => {
