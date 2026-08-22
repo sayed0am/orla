@@ -28,4 +28,16 @@ describe("static assets", () => {
 		expect(res.status).toBe(200);
 		expect(res.headers.get("content-type")).toContain("javascript");
 	});
+
+	it("serves the brief tab script as JavaScript", async () => {
+		const res = await SELF.fetch("http://example.com/brief.js");
+		expect(res.status).toBe(200);
+		expect(res.headers.get("content-type")).toContain("javascript");
+	});
+
+	it("serves the journal tab script as JavaScript", async () => {
+		const res = await SELF.fetch("http://example.com/journal.js");
+		expect(res.status).toBe(200);
+		expect(res.headers.get("content-type")).toContain("javascript");
+	});
 });

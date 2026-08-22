@@ -17,6 +17,8 @@ const SHELL_FILES = [
 	"/markdown.js",
 	"/notes.js",
 	"/costs.js",
+	"/brief.js",
+	"/journal.js",
 	"/api.js",
 	"/outbox.js",
 	"/icons/icon-192.png",
@@ -115,4 +117,49 @@ self.addEventListener("sync", (event) => {
 	if (event.tag === "flush-notes") {
 		event.waitUntil(flushOutbox());
 	}
+});
+
+self.addEventListener("push", (event) => {
+	let data = { title: "Orla", body: "" };
+	try {
+		if (event.data) {
+			data = { ...data, ...event.data.json() };
+		}
+	} catch (err) {
+		console.error("sw: failed to parse push payload", err);
+	}
+
+	event.waitUntil(
+		self.registration.showNotification(data.title, {
+			body: data.body,
+			data: { url: data.url },
+			icon: "/icons/icon-192.png",
+			badge: "/icons/icon-192.png",
+			tag: "orla",
+		}),
+	);
+});
+
+self.addEventListener("notificationclick", (event) => {
+	event.notification.close();
+	const url = event.notification.data?.url ?? "/";
+
+	event.waitUntil(
+		(async () => {
+			const clientsList = await self.clients.matchAll({
+				type: "window",
+				includeUncontrolled: true,
+			});
+			for (const client of clientsList) {
+				if ("focus" in client) {
+					await client.focus();
+					if ("navigate" in client) {
+						await client.navigate(url);
+					}
+					return;
+				}
+			}
+			await self.clients.openWindow(url);
+		})(),
+	);
 });
