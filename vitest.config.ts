@@ -28,6 +28,10 @@ export default defineWorkersConfig(async () => {
 							TEST_MIGRATIONS: migrations,
 							ACCESS_TEAM_DOMAIN: "test.cloudflareaccess.com",
 							ACCESS_AUD: "test-aud",
+							// Pinned empty so tests never depend on deploy config; tests that need
+							// push keys generate and inject their own.
+							VAPID_PUBLIC_KEY: "",
+							VAPID_PRIVATE_KEY: "",
 							OPENROUTER_BASE_URL: "https://llm.test/v1",
 							OPENROUTER_API_KEY: "test-key",
 						},
