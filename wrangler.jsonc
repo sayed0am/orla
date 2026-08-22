@@ -40,6 +40,8 @@
 	"vars": {
 		"ASSISTANT_NAME": "Orla",
 		"LLM_MODEL": "deepseek/deepseek-v4-flash-0731",
+		// batch jobs may use a cheaper model (PRD §5)
+		"LLM_MODEL_BATCH": "deepseek/deepseek-v4-flash-0731",
 		"ACCESS_TEAM_DOMAIN": "twilight-hill-05c7.cloudflareaccess.com",
 		"ACCESS_AUD": "cfaf7c0aabbc2d52329469ee895d58c7cb753c4d450ff0f6c054c16cb15904f2",
 		// AI Gateway URL is substituted per-deployment later.

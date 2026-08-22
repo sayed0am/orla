@@ -1,5 +1,6 @@
 import { requireAuth } from "./auth";
 import { insertRawNote, listRawNotes } from "./notes";
+import { runReorganization } from "./reorganize";
 import {
 	handleCreateConversation,
 	handleGetMessages,
@@ -7,6 +8,7 @@ import {
 	handlePostMessage,
 	MESSAGES_PATH_RE,
 } from "./routes/conversations";
+import { handleCostSummary } from "./routes/costs";
 
 export { Conversation } from "./conversation";
 
@@ -45,6 +47,43 @@ async function handleCreateNote(request: Request, env: Env): Promise<Response> {
 
 	const note = await insertRawNote(env.ORLA_DB, { body, private: isPrivate, client_id: clientId });
 	return Response.json(note, { status: 201 });
+}
+
+async function handleReorganizeRun(env: Env): Promise<Response> {
+	const result = await runReorganization(env);
+	return Response.json(result, { status: 200 });
+}
+
+type ReorgRunRow = {
+	id: string;
+	started_at: string;
+	finished_at: string | null;
+	status: string;
+	notes_in: number;
+	notes_ok: number;
+	notes_failed: number;
+	error: string | null;
+};
+
+async function handleListReorgRuns(request: Request, env: Env): Promise<Response> {
+	const url = new URL(request.url);
+	const limitParam = url.searchParams.get("limit");
+
+	let limit = 20;
+	if (limitParam !== null) {
+		limit = Number(limitParam);
+		if (!Number.isInteger(limit) || limit <= 0) {
+			return Response.json({ error: "limit must be a positive integer" }, { status: 400 });
+		}
+	}
+
+	const result = await env.ORLA_DB.prepare(
+		"SELECT id, started_at, finished_at, status, notes_in, notes_ok, notes_failed, error FROM reorg_runs ORDER BY started_at DESC, rowid DESC LIMIT ?",
+	)
+		.bind(limit)
+		.all<ReorgRunRow>();
+
+	return Response.json({ runs: result.results });
 }
 
 async function handleListNotes(request: Request, env: Env): Promise<Response> {
@@ -108,6 +147,17 @@ export default {
 			}
 		}
 
+		if (url.pathname === "/api/reorganize/run" && request.method === "POST") {
+			return handleReorganizeRun(env);
+		}
+
+		if (url.pathname === "/api/reorganize/runs" && request.method === "GET") {
+			return handleListReorgRuns(request, env);
+		}
+
+		if (url.pathname === "/api/costs" && request.method === "GET")
+			return handleCostSummary(request, env);
+
 		if (url.pathname.startsWith("/api/")) {
 			return Response.json({ error: "not found" }, { status: 404 });
 		}
@@ -115,10 +165,15 @@ export default {
 		return env.ASSETS.fetch(request);
 	},
 
-	async scheduled(controller, _env, _ctx) {
+	async scheduled(controller, env, ctx) {
 		switch (controller.cron) {
 			case "0 3 * * *":
 				// F3 nightly reorganization
+				ctx.waitUntil(
+					runReorganization(env).catch((err) => {
+						console.error("scheduled reorganization crashed", err);
+					}),
+				);
 				break;
 			case "0 6 * * *":
 				// F4 morning brief
