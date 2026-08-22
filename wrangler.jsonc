@@ -39,7 +39,9 @@
 	},
 	"vars": {
 		"ASSISTANT_NAME": "Orla",
-		"LLM_MODEL": "deepseek/deepseek-v4-flash-0731"
+		"LLM_MODEL": "deepseek/deepseek-v4-flash-0731",
+		"ACCESS_TEAM_DOMAIN": "",
+		"ACCESS_AUD": ""
 	}
 	// Secrets (wrangler secret put): OPENROUTER_API_KEY
 }

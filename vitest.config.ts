@@ -15,7 +15,11 @@ export default defineWorkersConfig(async () => {
 					// the date in wrangler.jsonc. Remove this when the pool is upgraded.
 					miniflare: {
 						compatibilityDate: "2025-09-01",
-						bindings: { TEST_MIGRATIONS: migrations },
+						bindings: {
+							TEST_MIGRATIONS: migrations,
+							ACCESS_TEAM_DOMAIN: "test.cloudflareaccess.com",
+							ACCESS_AUD: "test-aud",
+						},
 					},
 				},
 			},

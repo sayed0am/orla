@@ -1,12 +1,25 @@
 import { SELF } from "cloudflare:test";
-import { describe, expect, it } from "vitest";
+import { beforeAll, describe, expect, it } from "vitest";
+import { setJwksFetchForTests } from "../src/auth";
+import { fakeJwksFetch, withAccessHeader } from "./auth-helpers";
+
+beforeAll(() => {
+	setJwksFetchForTests(fakeJwksFetch);
+});
 
 async function createNote(body: unknown) {
-	return SELF.fetch("http://example.com/api/notes", {
-		method: "POST",
-		headers: { "content-type": "application/json" },
-		body: JSON.stringify(body),
-	});
+	return SELF.fetch(
+		"http://example.com/api/notes",
+		await withAccessHeader({
+			method: "POST",
+			headers: { "content-type": "application/json" },
+			body: JSON.stringify(body),
+		}),
+	);
+}
+
+async function getNotes(path: string) {
+	return SELF.fetch(`http://example.com${path}`, await withAccessHeader());
 }
 
 describe("POST /api/notes", () => {
@@ -54,11 +67,14 @@ describe("POST /api/notes", () => {
 	});
 
 	it("rejects invalid JSON", async () => {
-		const res = await SELF.fetch("http://example.com/api/notes", {
-			method: "POST",
-			headers: { "content-type": "application/json" },
-			body: "{ not json",
-		});
+		const res = await SELF.fetch(
+			"http://example.com/api/notes",
+			await withAccessHeader({
+				method: "POST",
+				headers: { "content-type": "application/json" },
+				body: "{ not json",
+			}),
+		);
 		expect(res.status).toBe(400);
 		expect(await res.json()).toHaveProperty("error");
 	});
@@ -81,7 +97,7 @@ describe("POST /api/notes", () => {
 		const secondNote = (await second.json()) as { id: string };
 		expect(secondNote.id).toBe(firstNote.id);
 
-		const listRes = await SELF.fetch("http://example.com/api/notes?limit=200");
+		const listRes = await getNotes("/api/notes?limit=200");
 		const { notes } = (await listRes.json()) as { notes: { id: string }[] };
 		const matches = notes.filter((n) => n.id === firstNote.id);
 		expect(matches).toHaveLength(1);
@@ -102,16 +118,14 @@ describe("GET /api/notes", () => {
 		const c = await createNote({ body: "note c" });
 		const noteC = (await c.json()) as { created_at: string };
 
-		const listRes = await SELF.fetch("http://example.com/api/notes?limit=2");
+		const listRes = await getNotes("/api/notes?limit=2");
 		expect(listRes.status).toBe(200);
 		const { notes } = (await listRes.json()) as { notes: { id: string; created_at: string }[] };
 		expect(notes).toHaveLength(2);
 		const [first, second] = notes;
 		expect(first && second && first.created_at >= second.created_at).toBe(true);
 
-		const beforeRes = await SELF.fetch(
-			`http://example.com/api/notes?before=${encodeURIComponent(noteC.created_at)}`,
-		);
+		const beforeRes = await getNotes(`/api/notes?before=${encodeURIComponent(noteC.created_at)}`);
 		const { notes: beforeNotes } = (await beforeRes.json()) as {
 			notes: { created_at: string }[];
 		};
@@ -121,7 +135,7 @@ describe("GET /api/notes", () => {
 	});
 
 	it("rejects a non-numeric limit", async () => {
-		const res = await SELF.fetch("http://example.com/api/notes?limit=abc");
+		const res = await getNotes("/api/notes?limit=abc");
 		expect(res.status).toBe(400);
 		expect(await res.json()).toHaveProperty("error");
 	});

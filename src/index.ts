@@ -1,4 +1,5 @@
 import { DurableObject } from "cloudflare:workers";
+import { requireAuth } from "./auth";
 import { insertRawNote, listRawNotes } from "./notes";
 
 const CLIENT_ID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
@@ -68,6 +69,13 @@ export default {
 
 		if (url.pathname === "/api/health") {
 			return Response.json({ ok: true, assistant: env.ASSISTANT_NAME });
+		}
+
+		if (url.pathname.startsWith("/api/")) {
+			const authResult = await requireAuth(request, env);
+			if (authResult instanceof Response) {
+				return authResult;
+			}
 		}
 
 		if (url.pathname === "/api/notes") {
