@@ -2,6 +2,7 @@
 
 import { mountCapture } from "./capture.js";
 import { mountChat } from "./chat.js";
+import { mountCosts } from "./costs.js";
 import { mountNotes } from "./notes.js";
 
 const DEFAULT_TAB = "capture";
@@ -9,6 +10,7 @@ const MOUNTERS = {
 	capture: mountCapture,
 	chat: mountChat,
 	notes: mountNotes,
+	costs: mountCosts,
 };
 
 const main = document.getElementById("main");

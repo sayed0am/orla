@@ -22,4 +22,10 @@ describe("static assets", () => {
 		expect(res.status).toBe(200);
 		expect(res.headers.get("content-type")).toContain("javascript");
 	});
+
+	it("serves the costs tab script as JavaScript", async () => {
+		const res = await SELF.fetch("http://example.com/costs.js");
+		expect(res.status).toBe(200);
+		expect(res.headers.get("content-type")).toContain("javascript");
+	});
 });

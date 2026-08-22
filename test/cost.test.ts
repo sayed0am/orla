@@ -61,6 +61,13 @@ describe("logLlmCall", () => {
 
 describe("costSummary", () => {
 	it("aggregates two calls of the same job_type into one row with summed tokens", async () => {
+		// Other test files also log job_type "reorganize" rows on the same UTC day (shared D1
+		// across the whole run per vitest.config.ts), so assert deltas rather than absolute
+		// totals — everything still lands in exactly one (day, job_type) row since it's all
+		// logged today.
+		const before = await costSummary(env.ORLA_DB, { days: 7 });
+		const baseline = before.find((row) => row.job_type === "reorganize");
+
 		await logLlmCall(env.ORLA_DB, {
 			jobType: "reorganize",
 			model: "test-model-agg",
@@ -77,12 +84,14 @@ describe("costSummary", () => {
 
 		expect(reorganizeRows).toHaveLength(1);
 		const row = reorganizeRows[0];
-		expect(row?.calls).toBe(2);
-		expect(row?.prompt_tokens).toBe(30);
-		expect(row?.cached_tokens).toBe(5);
-		expect(row?.completion_tokens).toBe(12);
-		expect(row?.cost_usd).toBeCloseTo(0.03, 10);
-		expect(typeof row?.day).toBe("string");
+		expect(row).toBeDefined();
+		if (!row) return;
+		expect(row.calls - (baseline?.calls ?? 0)).toBe(2);
+		expect(row.prompt_tokens - (baseline?.prompt_tokens ?? 0)).toBe(30);
+		expect(row.cached_tokens - (baseline?.cached_tokens ?? 0)).toBe(5);
+		expect(row.completion_tokens - (baseline?.completion_tokens ?? 0)).toBe(12);
+		expect(row.cost_usd - (baseline?.cost_usd ?? 0)).toBeCloseTo(0.03, 10);
+		expect(typeof row.day).toBe("string");
 	});
 
 	it("keeps distinct job_types in separate rows", async () => {
