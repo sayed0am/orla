@@ -48,3 +48,9 @@ pinned pool's workerd fails with `nodejs_compat` at newer dates. Deploy uses `wr
 
 Phase 2 (cron handlers in `src/index.ts` are stubbed: `0 3 * * *` reorganize, `0 6 * * *` brief)
 starts only after Phase 1 is in daily use.
+
+## Decisions that override the PRD
+
+- **No first-party calendar or email readers** (PRD §12 listed ICS and Gmail/Graph as compiled-in).
+  Decided 2026-08-22: calendar and email are consumed as remote MCP servers like everything else.
+  The only tool surface is the MCP client (P2); the morning brief's calendar section waits for it.
