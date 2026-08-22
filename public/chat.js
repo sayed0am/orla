@@ -1,6 +1,7 @@
 /** Chat tab: conversation list + streaming message view (PRD F1). */
 
 import { apiFetch } from "./api.js";
+import { renderMarkdown } from "./markdown.js";
 
 /**
  * Parses one SSE event block (lines already split, blank-line separated) into
@@ -195,10 +196,24 @@ export function mountChat(root) {
 		openConversation(conversation.id);
 	}
 
+	function renderAssistantContent(bubble, text, streaming) {
+		let content = bubble.querySelector(".md");
+		if (!content) {
+			content = document.createElement("div");
+			content.className = "md";
+			bubble.appendChild(content);
+		}
+		content.innerHTML = renderMarkdown(text, { streaming });
+	}
+
 	function appendBubble(role, text) {
 		const bubble = document.createElement("div");
 		bubble.className = `bubble ${role}`;
-		bubble.textContent = text;
+		if (role === "assistant") {
+			renderAssistantContent(bubble, text, false);
+		} else {
+			bubble.textContent = text;
+		}
 		messagesEl.appendChild(bubble);
 		if (!userScrolledUp) {
 			scrollToBottom();
@@ -258,6 +273,21 @@ export function mountChat(root) {
 
 			let assistantText = "";
 			let streamError;
+			let rafHandle = null;
+
+			const scheduleAssistantRender = () => {
+				if (rafHandle !== null) {
+					return;
+				}
+				rafHandle = requestAnimationFrame(() => {
+					rafHandle = null;
+					renderAssistantContent(assistantBubble, assistantText, true);
+					if (!userScrolledUp) {
+						scrollToBottom();
+					}
+				});
+			};
+
 			await readSse(res, (evt) => {
 				if (evt.event === "delta") {
 					let delta;
@@ -267,10 +297,7 @@ export function mountChat(root) {
 						delta = evt.data;
 					}
 					assistantText += typeof delta === "string" ? delta : (delta.text ?? "");
-					assistantBubble.textContent = assistantText;
-					if (!userScrolledUp) {
-						scrollToBottom();
-					}
+					scheduleAssistantRender();
 				} else if (evt.event === "error") {
 					try {
 						streamError = JSON.parse(evt.data).message;
@@ -279,6 +306,17 @@ export function mountChat(root) {
 					}
 				}
 			});
+
+			// Coalesced rAF renders may be mid-flight or skipped for the last delta(s); the
+			// final, non-streaming render always happens so the bubble ends up fully parsed.
+			if (rafHandle !== null) {
+				cancelAnimationFrame(rafHandle);
+				rafHandle = null;
+			}
+			renderAssistantContent(assistantBubble, assistantText, false);
+			if (!userScrolledUp) {
+				scrollToBottom();
+			}
 
 			if (streamError) {
 				appendErrorBubble(streamError);
