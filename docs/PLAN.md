@@ -59,3 +59,17 @@ starts only after Phase 1 is in daily use.
   Access application. Phase 1 keeps the Cloudflare Access gate (manual dashboard setup, ~5 min);
   Phase 3 replaces `src/auth.ts` with WebAuthn passkeys + a `credentials` table so install needs
   no dashboard steps. Routes only call `requireAuth`, so the swap is contained to that file.
+
+## Phase 2 status (2026-08-22)
+
+| Feature | Status | Notes |
+|---|---|---|
+| F3 nightly reorganization | done | `POST /api/reorganize/run` to backfill; quarantine + 3-strike give-up |
+| F4 morning brief + Web Push | done | deterministic brief, no LLM; VAPID keys via `npm run vapid` |
+| F6 cost dashboard | done | Costs tab |
+| F7 journal views | done | FTS5 over organized notes; export |
+| F5 reminders | in progress | Scheduler DO alarm, chat "remind me…" pre-step |
+| Memory Option A | next | `memory_facts`, user-editable, rendered into cached prefix |
+
+Deploy checklist after pulling: `npm run vapid` → public key into `wrangler.jsonc`, private via
+`wrangler secret put VAPID_PRIVATE_KEY`; `wrangler d1 migrations apply orla --remote`; `wrangler deploy`.
