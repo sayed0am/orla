@@ -54,3 +54,8 @@ starts only after Phase 1 is in daily use.
 - **No first-party calendar or email readers** (PRD §12 listed ICS and Gmail/Graph as compiled-in).
   Decided 2026-08-22: calendar and email are consumed as remote MCP servers like everything else.
   The only tool surface is the MCP client (P2); the morning brief's calendar section waits for it.
+- **Auth end state is passkeys, not Access** (decided 2026-08-22). Wrangler's OAuth has no
+  Zero Trust scope (`wrangler login --scopes-list`), so a one-line installer (F8) cannot create an
+  Access application. Phase 1 keeps the Cloudflare Access gate (manual dashboard setup, ~5 min);
+  Phase 3 replaces `src/auth.ts` with WebAuthn passkeys + a `credentials` table so install needs
+  no dashboard steps. Routes only call `requireAuth`, so the swap is contained to that file.
