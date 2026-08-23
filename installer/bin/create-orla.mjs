@@ -75,12 +75,12 @@ async function main() {
 		printStepStart("preflight");
 		const node = checkNodeVersion();
 		if (!node.ok) {
-			printStepFailed("preflight", `Node ${node.major || "?"} found; Node 20+ is required.`);
+			printStepFailed("preflight", `Node ${node.major || "?"} found; Node 20+ is required.`, dir);
 			process.exit(1);
 		}
 		const git = await checkGitPresent(runner);
 		if (!git.ok) {
-			printStepFailed("preflight", "git was not found on PATH.");
+			printStepFailed("preflight", "git was not found on PATH.", dir);
 			process.exit(1);
 		}
 		let whoami = await checkCloudflareLogin(runner, wranglerBin);
@@ -89,7 +89,7 @@ async function main() {
 			await login(runner, wranglerBin);
 			whoami = await checkCloudflareLogin(runner, wranglerBin);
 			if (!whoami.loggedIn) {
-				printStepFailed("preflight", "Cloudflare login did not complete.");
+				printStepFailed("preflight", "Cloudflare login did not complete.", dir);
 				process.exit(1);
 			}
 		}
@@ -109,7 +109,7 @@ async function main() {
 		printStepStart("clone");
 		const result = await cloneOrReuse(runner, { ref: options.ref, dir });
 		if (result.code !== 0) {
-			printStepFailed("clone", result.stderr);
+			printStepFailed("clone", result.stderr, dir);
 			process.exit(1);
 		}
 		printStepDone("clone");
@@ -149,6 +149,7 @@ async function main() {
 		printStepFailed(
 			"prompts",
 			"OPENROUTER_API_KEY is required with --yes (set the environment variable, or drop --yes).",
+			dir,
 		);
 		process.exit(1);
 	}
@@ -183,7 +184,7 @@ async function main() {
 			vapidPublicKey: vapidKeys.publicKey,
 		});
 		if (!result.ok) {
-			printStepFailed("provision", result.stderr);
+			printStepFailed("provision", result.stderr, dir);
 			process.exit(1);
 		}
 		console.log(`D1 database ready (id ${result.databaseId}).`);
@@ -205,7 +206,7 @@ async function main() {
 		});
 		if (!result.ok) {
 			const failed = result.results.find((r) => !r.ok);
-			printStepFailed("secrets", failed?.stderr);
+			printStepFailed("secrets", failed?.stderr, dir);
 			process.exit(1);
 		}
 		printStepDone("secrets");
@@ -216,7 +217,7 @@ async function main() {
 		printStepStart("install");
 		const result = await npmCi(runner, { dir });
 		if (!result.ok) {
-			printStepFailed("install", result.stderr);
+			printStepFailed("install", result.stderr, dir);
 			process.exit(1);
 		}
 		printStepDone("install");
@@ -224,9 +225,9 @@ async function main() {
 
 	if (steps.has("migrate")) {
 		printStepStart("migrate");
-		const result = await applyMigrations(runner, { dir, wranglerBin, workerName });
+		const result = await applyMigrations(runner, { dir, wranglerBin });
 		if (!result.ok) {
-			printStepFailed("migrate", result.stderr);
+			printStepFailed("migrate", result.stderr, dir);
 			process.exit(1);
 		}
 		printStepDone("migrate");
@@ -237,7 +238,7 @@ async function main() {
 		printStepStart("deploy");
 		const result = await deploy(runner, { dir, wranglerBin });
 		if (!result.ok) {
-			printStepFailed("deploy", result.stderr);
+			printStepFailed("deploy", result.stderr, dir);
 			process.exit(1);
 		}
 		deployedUrl = result.url;
@@ -266,7 +267,7 @@ async function main() {
 	}
 
 	// --- done --------------------------------------------------------------------------------
-	console.log(buildDoneScreen({ url: deployedUrl ?? "(deploy skipped)", dir, workerName }));
+	console.log(buildDoneScreen({ url: deployedUrl ?? "(deploy skipped)", dir }));
 }
 
 await main();

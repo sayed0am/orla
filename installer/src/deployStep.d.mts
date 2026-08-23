@@ -7,8 +7,9 @@ export interface DirOptions {
 
 export interface WranglerStepOptions extends DirOptions {
 	wranglerBin: WranglerBin;
-	workerName?: string;
 }
+
+export const D1_BINDING: string;
 
 export function npmCi(
 	runner: Runner,
@@ -17,7 +18,7 @@ export function npmCi(
 
 export function applyMigrations(
 	runner: Runner,
-	options: WranglerStepOptions & { workerName: string },
+	options: WranglerStepOptions,
 ): Promise<{ ok: boolean; stdout: string; stderr: string }>;
 
 export type DeployResult =

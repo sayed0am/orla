@@ -10,7 +10,8 @@ import { describe, expect, it } from "vitest";
 
 import { parseArgs } from "../installer/src/cliArgs.mjs";
 import { isExistingOrlaCheckout } from "../installer/src/clone.mjs";
-import { applyMigrations, deploy, npmCi } from "../installer/src/deployStep.mjs";
+import { applyMigrations, D1_BINDING, deploy, npmCi } from "../installer/src/deployStep.mjs";
+import { buildResumeCommand } from "../installer/src/log.mjs";
 import { parseD1CreateOutput, parseDeployUrl, parseWhoami } from "../installer/src/parse.mjs";
 import { buildPlan, formatPlan } from "../installer/src/plan.mjs";
 import {
@@ -209,6 +210,7 @@ describe("wrangler.jsonc rewriting", () => {
 			const updated = applyProvisioning(original, {
 				workerName: "my-orla",
 				databaseId: "11111111-2222-3333-4444-555555555555",
+				databaseName: "my-orla",
 				assistantName: "Robin",
 				vapidSubject: "mailto:me@example.com",
 				vapidPublicKey: "PUBLICKEYVALUE",
@@ -216,9 +218,17 @@ describe("wrangler.jsonc rewriting", () => {
 
 			expect(updated).toContain('"name": "my-orla"');
 			expect(updated).toContain('"database_id": "11111111-2222-3333-4444-555555555555"');
+			// Regression: a real install with Worker name "orla-test" once left
+			// `"database_name": "orla"` in place, and `wrangler d1 migrations apply orla-test
+			// --remote` failed with "Couldn't find a D1 DB with the name or binding 'orla-test'"
+			// because wrangler resolves the migrations target by database_name/binding in config.
+			expect(updated).toContain('"database_name": "my-orla"');
 			expect(updated).toContain('"ASSISTANT_NAME": "Robin"');
 			expect(updated).toContain('"VAPID_SUBJECT": "mailto:me@example.com"');
 			expect(updated).toContain('"VAPID_PUBLIC_KEY": "PUBLICKEYVALUE"');
+
+			// The D1 binding itself must never change — only database_name/database_id do.
+			expect(updated).toContain('"binding": "ORLA_DB"');
 
 			// Comments are preserved verbatim (a JSON.parse/stringify round trip would drop these).
 			expect(updated).toContain("// 03:00 UTC nightly reorganization");
@@ -407,7 +417,7 @@ describe("--dry-run plan", () => {
 
 		const migrateStep = plan.find((s) => s.step === "migrate");
 		expect(migrateStep?.commands).toEqual([
-			"npx --yes wrangler@4.125.0 d1 migrations apply orla --remote",
+			`npx --yes wrangler@4.125.0 d1 migrations apply ${D1_BINDING} --remote`,
 		]);
 
 		const deployStep = plan.find((s) => s.step === "deploy");
@@ -466,7 +476,50 @@ describe("step modules use an injectable runner instead of spawning directly", (
 
 			const written = readFileSync(join(dir, "wrangler.jsonc"), "utf8");
 			expect(written).toContain('"database_id": "aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee"');
+			// Regression: database_name must be rewritten too, not just database_id — see
+			// applyProvisioning's doc comment and the "wrangler.jsonc rewriting" describe block above.
+			expect(written).toContain('"database_name": "orla"');
 			expect(written).toContain('"VAPID_PUBLIC_KEY": "PUBKEY"');
+		} finally {
+			rmSync(dir, { recursive: true, force: true });
+		}
+	});
+
+	it("provision() rewrites database_name to the Worker name even when it differs from the checkout's current one (real-install regression)", async () => {
+		// Reproduces the bug report exactly: Worker name "orla-test" against a freshly cloned
+		// checkout whose wrangler.jsonc still says `"database_name": "orla"`. Before the fix,
+		// `wrangler d1 migrations apply orla-test --remote` failed with "Couldn't find a D1 DB
+		// with the name or binding 'orla-test'" because database_name was left at "orla".
+		const dir = mkdtempSync(join(tmpdir(), "orla-installer-test-"));
+		try {
+			const original = readFileSync(join(REPO_ROOT, "wrangler.jsonc"), "utf8");
+			writeFileSync(join(dir, "wrangler.jsonc"), original);
+
+			const { runner } = createMockRunner([
+				{
+					code: 0,
+					stdout:
+						'{\n  "d1_databases": [\n    {\n      "binding": "ORLA_DB",\n      "database_name": "orla-test",\n      "database_id": "99999999-8888-7777-6666-555555555555"\n    }\n  ]\n}\n',
+					stderr: "",
+				},
+			]);
+
+			const result = await provision(runner, {
+				dir,
+				wranglerBin: WRANGLER_BIN,
+				workerName: "orla-test",
+				assistantName: "Orla",
+				vapidSubject: "mailto:me@example.com",
+				vapidPublicKey: "PUBKEY",
+			});
+
+			expect(result.ok).toBe(true);
+			const written = readFileSync(join(dir, "wrangler.jsonc"), "utf8");
+			expect(written).toContain('"name": "orla-test"');
+			expect(written).toContain('"database_name": "orla-test"');
+			expect(written).toContain('"database_id": "99999999-8888-7777-6666-555555555555"');
+			// The binding is never renamed.
+			expect(written).toContain('"binding": "ORLA_DB"');
 		} finally {
 			rmSync(dir, { recursive: true, force: true });
 		}
@@ -557,16 +610,19 @@ describe("step modules use an injectable runner instead of spawning directly", (
 		expect(calls[0]).toMatchObject({ command: "npm", args: ["ci"], options: { cwd: dir } });
 	});
 
-	it("applyMigrations() passes --remote", async () => {
+	it("applyMigrations() resolves the database by its binding, not the Worker/database name", async () => {
+		// Regression: this must NOT depend on workerName/database_name staying in sync (that's a
+		// separate wrangler.jsonc-rewrite concern, covered above) — the binding is stable
+		// regardless, and `wrangler d1 migrations apply <name-or-binding>` accepts either.
 		const { runner, calls } = createMockRunner([{ code: 0, stdout: "", stderr: "" }]);
-		await applyMigrations(runner, { dir: "/orla", wranglerBin: WRANGLER_BIN, workerName: "orla" });
+		await applyMigrations(runner, { dir: "/orla", wranglerBin: WRANGLER_BIN });
 		expect(calls[0]?.args).toEqual([
 			"--yes",
 			`wrangler@${WRANGLER_VERSION}`,
 			"d1",
 			"migrations",
 			"apply",
-			"orla",
+			D1_BINDING,
 			"--remote",
 		]);
 	});
@@ -654,6 +710,29 @@ describe("installer CLI has zero runtime dependencies", () => {
 			readFileSync(join(REPO_ROOT, "installer", "package.json"), "utf8"),
 		);
 		expect(pkg.dependencies ?? {}).toEqual({});
+	});
+});
+
+describe("buildResumeCommand", () => {
+	it("echoes the actual argv[0]/argv[1] the user invoked, not a hardcoded command", () => {
+		const argv = ["/usr/local/bin/node", "/Users/me/installer/bin/create-orla.mjs", "--yes"];
+		expect(buildResumeCommand(argv, "migrate")).toBe(
+			"/usr/local/bin/node /Users/me/installer/bin/create-orla.mjs --from migrate",
+		);
+	});
+
+	it("appends --dir so the resume targets the same checkout", () => {
+		const argv = ["node", "create-orla.mjs"];
+		expect(buildResumeCommand(argv, "secrets", "my-orla")).toBe(
+			"node create-orla.mjs --from secrets --dir my-orla",
+		);
+	});
+
+	it("works for a published `create-orla` invocation too", () => {
+		const argv = ["/usr/local/bin/node", "/usr/local/bin/create-orla"];
+		expect(buildResumeCommand(argv, "deploy", "orla")).toBe(
+			"/usr/local/bin/node /usr/local/bin/create-orla --from deploy --dir orla",
+		);
 	});
 });
 

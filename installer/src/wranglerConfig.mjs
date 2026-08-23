@@ -37,14 +37,32 @@ export function setJsonStringField(source, key, value, { all = false } = {}) {
  * Applies every field this installer provisions to a wrangler.jsonc source string in one pass.
  * Any option left `undefined` is skipped (leaves the existing value, e.g. AUTH_MODE stays
  * "passkey" and ACCESS_* stay empty — this installer never touches either).
+ *
+ * `databaseName` matters as much as `databaseId`: `wrangler d1 migrations apply <name>` and
+ * `wrangler deploy` resolve the D1 database by matching `database_name` (or the binding) in
+ * config against the account's real D1 database name — a real install once left
+ * `"database_name": "orla"` in place while renaming the Worker to `orla-test`, and
+ * `d1 migrations apply orla-test --remote` failed with "Couldn't find a D1 DB with the name or
+ * binding 'orla-test'". `provision.mjs` creates the D1 database with the same name as the
+ * Worker, so callers should pass `databaseName` equal to `workerName` whenever they set either.
+ * The `binding` (ORLA_DB) is never touched here — it stays stable across installs.
  */
 export function applyProvisioning(
 	source,
-	{ workerName, databaseId, assistantName, vapidSubject, vapidPublicKey, llmProvider } = {},
+	{
+		workerName,
+		databaseId,
+		databaseName,
+		assistantName,
+		vapidSubject,
+		vapidPublicKey,
+		llmProvider,
+	} = {},
 ) {
 	let out = source;
 	if (workerName !== undefined) out = setJsonStringField(out, "name", workerName);
 	if (databaseId !== undefined) out = setJsonStringField(out, "database_id", databaseId);
+	if (databaseName !== undefined) out = setJsonStringField(out, "database_name", databaseName);
 	if (assistantName !== undefined) out = setJsonStringField(out, "ASSISTANT_NAME", assistantName);
 	if (vapidSubject !== undefined) out = setJsonStringField(out, "VAPID_SUBJECT", vapidSubject);
 	if (vapidPublicKey !== undefined) {

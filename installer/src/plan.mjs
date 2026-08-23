@@ -2,6 +2,7 @@
 // them. Used for `--dry-run` and unit-tested directly so the plan's shape is covered without
 // spawning a process.
 
+import { D1_BINDING } from "./deployStep.mjs";
 import { STEP_ORDER } from "./steps.mjs";
 
 /**
@@ -36,7 +37,7 @@ export function buildPlan({
 		],
 		provision: [
 			`${wrangler} d1 create ${workerName} --update-config=false`,
-			"edit wrangler.jsonc: name, database_id, ASSISTANT_NAME, VAPID_SUBJECT, VAPID_PUBLIC_KEY",
+			"edit wrangler.jsonc: name, database_id, database_name, ASSISTANT_NAME, VAPID_SUBJECT, VAPID_PUBLIC_KEY",
 		],
 		secrets: [
 			`echo <OPENROUTER_API_KEY> | ${wrangler} secret put OPENROUTER_API_KEY --name ${workerName}`,
@@ -44,7 +45,9 @@ export function buildPlan({
 			`echo <SESSION_SECRET> | ${wrangler} secret put SESSION_SECRET --name ${workerName}`,
 		],
 		install: ["npm ci"],
-		migrate: [`${wrangler} d1 migrations apply ${workerName} --remote`],
+		// Resolved by the stable D1 binding, not the Worker/database name — see deployStep.mjs's
+		// D1_BINDING doc comment.
+		migrate: [`${wrangler} d1 migrations apply ${D1_BINDING} --remote`],
 		deploy: [`${wrangler} deploy`],
 		"zdr-pin": pinZdr
 			? ["node scripts/zdr-pin.mjs --json", `${wrangler} deploy`]

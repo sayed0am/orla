@@ -10,6 +10,7 @@ export function applyProvisioning(
 	fields?: {
 		workerName?: string;
 		databaseId?: string;
+		databaseName?: string;
 		assistantName?: string;
 		vapidSubject?: string;
 		vapidPublicKey?: string;

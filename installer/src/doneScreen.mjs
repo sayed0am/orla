@@ -1,8 +1,9 @@
+import { D1_BINDING } from "./deployStep.mjs";
 import { ZDR_SETTINGS_URL } from "./openrouter.mjs";
 
 /** Builds the final "you're done" screen text. Pure string-building so its content is
  * unit-testable without running the rest of the installer. */
-export function buildDoneScreen({ url, dir, workerName }) {
+export function buildDoneScreen({ url, dir }) {
 	return `
 Orla is live: ${url}
 
@@ -18,6 +19,6 @@ Two things this installer cannot do for you (PRD Sec.7 security prerequisites):
     ${ZDR_SETTINGS_URL}
 
 To update later:
-  cd ${dir} && git pull && npm ci && npx wrangler d1 migrations apply ${workerName} --remote && npx wrangler deploy
+  cd ${dir} && git pull && npm ci && npx wrangler d1 migrations apply ${D1_BINDING} --remote && npx wrangler deploy
 `;
 }

@@ -32,13 +32,19 @@ export async function provision(
 		return { ok: false, stderr: result.stderr, stdout: result.stdout };
 	}
 
-	const { databaseId } = parseD1CreateOutput(result.stdout);
+	const { databaseId, databaseName } = parseD1CreateOutput(result.stdout);
 
 	const configPath = join(dir, "wrangler.jsonc");
 	const before = readFileSync(configPath, "utf8");
 	const after = applyProvisioning(before, {
 		workerName,
 		databaseId,
+		// `d1 create` was run with `workerName` as the database name (see the call above), so
+		// `databaseName` should already equal it — but prefer what wrangler itself echoed back
+		// over assuming that, and only fall back to `workerName` if that parse ever comes back
+		// empty. `database_name` in wrangler.jsonc must match the real D1 database name or
+		// `wrangler d1 migrations apply <name>`/`deploy` can't resolve the binding by name.
+		databaseName: databaseName ?? workerName,
 		assistantName,
 		vapidSubject,
 		vapidPublicKey,

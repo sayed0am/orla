@@ -70,10 +70,10 @@ recurring cost that scales with use is OpenRouter LLM spend, which is visible in
 ## Updating
 
 ```sh
-cd orla && git pull && npm ci && npx wrangler d1 migrations apply orla --remote && npx wrangler deploy
+cd orla && git pull && npm ci && npx wrangler d1 migrations apply ORLA_DB --remote && npx wrangler deploy
 ```
 
-(substitute your Worker/database name if you changed it from the default `orla` during install).
+`ORLA_DB` is the D1 binding name (fixed by the installer, regardless of what you named your Worker or database) — no substitution needed even if you didn't use the default `orla` name.
 
 ## Uninstalling
 
