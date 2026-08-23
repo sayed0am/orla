@@ -303,6 +303,80 @@ input[type="text"] {
 	white-space: pre-wrap;
 }
 
+/* PRD §12 MCP tool calls: a small chip under the assistant bubble per tool call. */
+.tool-chip {
+	align-self: flex-start;
+	max-width: 80%;
+	font-size: 0.8rem;
+	color: var(--muted);
+	background: var(--surface);
+	border: 1px solid var(--border);
+	border-radius: 999px;
+	padding: 0.25rem 0.7rem;
+}
+
+.tool-chip.error {
+	color: var(--danger);
+	border-color: var(--danger);
+}
+
+/* PRD §12 tap-to-confirm: an act-tier tool call waiting on the user. */
+.confirm-card {
+	align-self: flex-start;
+	max-width: 90%;
+	background: var(--surface);
+	border: 1px solid var(--border);
+	border-radius: 14px;
+	padding: 0.7rem 0.85rem;
+}
+
+.confirm-card-name {
+	font-weight: 600;
+	margin-bottom: 0.4rem;
+}
+
+.confirm-card pre {
+	margin: 0 0 0.6rem;
+	padding: 0.5rem 0.6rem;
+	background: var(--bg);
+	border: 1px solid var(--border);
+	border-radius: 8px;
+	font-size: 0.8rem;
+	overflow-x: auto;
+	white-space: pre-wrap;
+	word-break: break-word;
+}
+
+.confirm-card-actions {
+	display: flex;
+	gap: 0.5rem;
+}
+
+.confirm-card-actions button {
+	flex: 1;
+}
+
+.confirm-card-result {
+	margin-top: 0.6rem;
+	padding-top: 0.6rem;
+	border-top: 1px solid var(--border);
+	font-size: 0.85rem;
+	white-space: pre-wrap;
+	word-break: break-word;
+}
+
+/* Pending-actions badge (Chat tab) */
+.actions-pending-badge {
+	display: inline-block;
+	margin-left: 0.4rem;
+	font-size: 0.7rem;
+	font-weight: 600;
+	color: var(--accent-text);
+	background: var(--accent);
+	border-radius: 999px;
+	padding: 0.05rem 0.45rem;
+}
+
 /* Assistant markdown content */
 .md > :first-child {
 	margin-top: 0;
@@ -1068,4 +1142,70 @@ input[type="text"] {
 .passkeys-signout {
 	width: 100%;
 	margin-top: 0.75rem;
+}
+
+/* MCP servers card (Brief tab, PRD §12) */
+.mcp-servers-card {
+	background: var(--surface);
+	border: 1px solid var(--border);
+	border-radius: 10px;
+	padding: 1rem;
+}
+
+.mcp-server-row {
+	display: flex;
+	align-items: flex-start;
+	gap: 0.6rem;
+	border: 1px solid var(--border);
+	border-radius: 10px;
+	padding: 0.6rem 0.8rem;
+	margin-bottom: 0.5rem;
+}
+
+.mcp-server-info {
+	flex: 1;
+	min-width: 0;
+}
+
+.mcp-server-name {
+	font-weight: 600;
+	word-break: break-word;
+}
+
+.mcp-server-meta {
+	margin-top: 0.15rem;
+}
+
+.mcp-server-actions {
+	display: flex;
+	flex-direction: column;
+	gap: 0.35rem;
+	align-items: stretch;
+}
+
+.mcp-server-actions button {
+	white-space: nowrap;
+}
+
+.mcp-add-row {
+	display: flex;
+	flex-direction: column;
+	gap: 0.5rem;
+	margin-top: 0.75rem;
+}
+
+.mcp-add-row input {
+	width: 100%;
+}
+
+.mcp-disclosure {
+	color: var(--muted);
+	font-size: 0.8rem;
+	font-style: italic;
+	margin: 0.5rem 0;
+}
+
+.mcp-error {
+	color: var(--danger);
+	margin: 0.5rem 0 0;
 }

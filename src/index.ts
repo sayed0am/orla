@@ -30,6 +30,22 @@ import {
 	handleJournalSearch,
 } from "./routes/journal";
 import {
+	handleConfirmAction,
+	handleCreateServer,
+	handleDeleteServer,
+	handleListActions,
+	handleListServers,
+	handleRefreshServer,
+	handleRejectAction,
+	handleTestServer,
+	handleUpdateServer,
+	MCP_SERVER_PATH_RE,
+	MCP_SERVER_REFRESH_PATH_RE,
+	MCP_SERVER_TEST_PATH_RE,
+	PENDING_ACTION_CONFIRM_PATH_RE,
+	PENDING_ACTION_REJECT_PATH_RE,
+} from "./routes/mcp";
+import {
 	handleMemoryCreate,
 	handleMemoryDelete,
 	handleMemoryList,
@@ -285,6 +301,54 @@ export default {
 			if (request.method === "DELETE") {
 				return handleMemoryDelete(env, id);
 			}
+		}
+
+		if (url.pathname === "/api/mcp/servers") {
+			if (request.method === "GET") {
+				return handleListServers(env);
+			}
+			if (request.method === "POST") {
+				return handleCreateServer(request, env);
+			}
+		}
+
+		const mcpServerRefreshMatch = MCP_SERVER_REFRESH_PATH_RE.exec(url.pathname);
+		if (mcpServerRefreshMatch && request.method === "POST") {
+			const id = mcpServerRefreshMatch[1] as string;
+			return handleRefreshServer(env, id);
+		}
+
+		const mcpServerTestMatch = MCP_SERVER_TEST_PATH_RE.exec(url.pathname);
+		if (mcpServerTestMatch && request.method === "POST") {
+			const id = mcpServerTestMatch[1] as string;
+			return handleTestServer(env, id);
+		}
+
+		const mcpServerMatch = MCP_SERVER_PATH_RE.exec(url.pathname);
+		if (mcpServerMatch) {
+			const id = mcpServerMatch[1] as string;
+			if (request.method === "PATCH") {
+				return handleUpdateServer(request, env, id);
+			}
+			if (request.method === "DELETE") {
+				return handleDeleteServer(env, id);
+			}
+		}
+
+		if (url.pathname === "/api/actions" && request.method === "GET") {
+			return handleListActions(request, env);
+		}
+
+		const actionConfirmMatch = PENDING_ACTION_CONFIRM_PATH_RE.exec(url.pathname);
+		if (actionConfirmMatch && request.method === "POST") {
+			const id = actionConfirmMatch[1] as string;
+			return handleConfirmAction(env, id);
+		}
+
+		const actionRejectMatch = PENDING_ACTION_REJECT_PATH_RE.exec(url.pathname);
+		if (actionRejectMatch && request.method === "POST") {
+			const id = actionRejectMatch[1] as string;
+			return handleRejectAction(env, id);
 		}
 
 		if (url.pathname === "/api/push/subscribe") {

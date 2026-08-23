@@ -223,6 +223,132 @@ describe("streamChat", () => {
 		expect(events).toEqual([{ type: "delta", text: "partial" }]);
 		expect(events.some((e) => e.type === "done")).toBe(false);
 	});
+
+	it("accumulates a tool call's arguments split across many chunks and yields tool_calls before done", async () => {
+		const fullText =
+			'data: {"choices":[{"delta":{"tool_calls":[{"index":0,"id":"call_1","type":"function",' +
+			'"function":{"name":"get_weather","arguments":""}}]}}]}\n\n' +
+			'data: {"choices":[{"delta":{"tool_calls":[{"index":0,"function":{"arguments":"{\\"loc"}}]}}]}\n\n' +
+			'data: {"choices":[{"delta":{"tool_calls":[{"index":0,"function":{"arguments":"ation\\":\\"NYC\\"}"}}]}}]}\n\n' +
+			'data: {"choices":[{"delta":{},"finish_reason":"tool_calls"}],' +
+			'"usage":{"prompt_tokens":12,"completion_tokens":4}}\n\n' +
+			"data: [DONE]\n\n";
+		const stream = sseStream(fullText, []);
+		const response = new Response(stream, { status: 200 });
+		const captured: CapturedRequest[] = [];
+
+		const events = [];
+		for await (const event of streamChat(messages, cfg, fakeFetch(response, captured))) {
+			events.push(event);
+		}
+
+		expect(events.filter((e) => e.type === "delta")).toHaveLength(0);
+		const toolCallEvents = events.filter((e) => e.type === "tool_calls");
+		expect(toolCallEvents).toHaveLength(1);
+		const toolCalls = toolCallEvents[0] as {
+			type: "tool_calls";
+			calls: { id: string; name: string; arguments: string }[];
+		};
+		expect(toolCalls.calls).toEqual([
+			{ id: "call_1", name: "get_weather", arguments: '{"location":"NYC"}' },
+		]);
+
+		// tool_calls must come before done, in that order, with nothing after done.
+		expect(events.map((e) => e.type)).toEqual(["tool_calls", "done"]);
+		expect(events[1]).toMatchObject({ type: "done", finish_reason: "tool_calls" });
+	});
+
+	it("splits arguments across a chunk boundary mid-stream (raw byte split)", async () => {
+		const fullText =
+			'data: {"choices":[{"delta":{"tool_calls":[{"index":0,"id":"call_9","type":"function",' +
+			'"function":{"name":"search","arguments":"{\\"q\\":\\"orla ' +
+			'personal assistant\\"}"}}]}}]}\n\n' +
+			'data: {"choices":[{"delta":{},"finish_reason":"tool_calls"}],"usage":{"prompt_tokens":1,"completion_tokens":1}}\n\n' +
+			"data: [DONE]\n\n";
+		const bytes = new TextEncoder().encode(fullText);
+		const splitIndex = Math.floor(bytes.length / 2);
+		const stream = sseStream(fullText, [splitIndex]);
+		const response = new Response(stream, { status: 200 });
+		const captured: CapturedRequest[] = [];
+
+		const events = [];
+		for await (const event of streamChat(messages, cfg, fakeFetch(response, captured))) {
+			events.push(event);
+		}
+
+		const toolCalls = events.find((e) => e.type === "tool_calls") as
+			| { type: "tool_calls"; calls: { id: string; name: string; arguments: string }[] }
+			| undefined;
+		expect(toolCalls?.calls).toEqual([
+			{ id: "call_9", name: "search", arguments: '{"q":"orla personal assistant"}' },
+		]);
+	});
+
+	it("yields tool_calls before done even when usage never arrives (finish_reason alone)", async () => {
+		const fullText =
+			'data: {"choices":[{"delta":{"tool_calls":[{"index":0,"id":"call_2","type":"function",' +
+			'"function":{"name":"noop","arguments":"{}"}}]},"finish_reason":"tool_calls"}]}\n\n' +
+			"data: [DONE]\n\n";
+		const stream = sseStream(fullText, []);
+		const response = new Response(stream, { status: 200 });
+		const captured: CapturedRequest[] = [];
+
+		const events = [];
+		for await (const event of streamChat(messages, cfg, fakeFetch(response, captured))) {
+			events.push(event);
+		}
+
+		expect(events).toEqual([
+			{ type: "tool_calls", calls: [{ id: "call_2", name: "noop", arguments: "{}" }] },
+		]);
+	});
+
+	it("includes tools and tool_choice: auto in the request body when cfg.tools is set", async () => {
+		const stream = sseStream("data: [DONE]\n\n", []);
+		const response = new Response(stream, { status: 200 });
+		const captured: CapturedRequest[] = [];
+
+		const toolDef = {
+			type: "function" as const,
+			function: { name: "s1__list_events", description: "List events", parameters: {} },
+		};
+
+		for await (const _event of streamChat(
+			messages,
+			{ ...cfg, tools: [toolDef] },
+			fakeFetch(response, captured),
+		)) {
+			// drain
+		}
+
+		const body = parsedBody(captured);
+		expect(body.tools).toEqual([toolDef]);
+		expect(body.tool_choice).toBe("auto");
+	});
+
+	it("omits tools and tool_choice entirely when cfg.tools is unset or empty", async () => {
+		const response1 = new Response(sseStream("data: [DONE]\n\n", []), { status: 200 });
+		const captured1: CapturedRequest[] = [];
+		for await (const _e of streamChat(messages, cfg, fakeFetch(response1, captured1))) {
+			// drain
+		}
+		const body1 = parsedBody(captured1);
+		expect(body1).not.toHaveProperty("tools");
+		expect(body1).not.toHaveProperty("tool_choice");
+
+		const response2 = new Response(sseStream("data: [DONE]\n\n", []), { status: 200 });
+		const captured2: CapturedRequest[] = [];
+		for await (const _e of streamChat(
+			messages,
+			{ ...cfg, tools: [] },
+			fakeFetch(response2, captured2),
+		)) {
+			// drain
+		}
+		const body2 = parsedBody(captured2);
+		expect(body2).not.toHaveProperty("tools");
+		expect(body2).not.toHaveProperty("tool_choice");
+	});
 });
 
 describe("completeJson", () => {

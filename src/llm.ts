@@ -7,6 +7,7 @@
  */
 
 import type { ChatMessage } from "./prompt";
+import type { ToolDef } from "./tools";
 
 export type LlmConfig = {
 	apiKey: string;
@@ -20,6 +21,14 @@ export type LlmConfig = {
 	 * still enforced but OpenRouter picks among all ZDR endpoints itself.
 	 */
 	provider?: string;
+	/**
+	 * MCP tool definitions (PRD §12, `src/tools.ts`'s `renderToolsForPrompt`). Only ever set for
+	 * interactive chat (`Conversation#send`) — background jobs (reorganize, brief) never pass
+	 * tools, per the PRD's capability-tier rule. Omitted (or empty) means no `tools`/`tool_choice`
+	 * field is sent at all, so a no-MCP-servers request is byte-identical to before tool calling
+	 * existed.
+	 */
+	tools?: ToolDef[];
 };
 
 /**
@@ -37,8 +46,12 @@ export type Usage = {
 	cost_usd: number | null;
 };
 
+/** One fully-accumulated tool call, reassembled from streamed `function.name`/`arguments` fragments. */
+export type StreamToolCall = { id: string; name: string; arguments: string };
+
 export type StreamEvent =
 	| { type: "delta"; text: string }
+	| { type: "tool_calls"; calls: StreamToolCall[] }
 	| { type: "done"; usage: Usage; finish_reason: string | null }
 	| { type: "error"; message: string };
 
@@ -73,7 +86,7 @@ function requestBody(
 	cfg: LlmConfig,
 	stream: boolean,
 ): Record<string, unknown> {
-	return {
+	const body: Record<string, unknown> = {
 		model: cfg.model,
 		messages,
 		stream,
@@ -83,6 +96,13 @@ function requestBody(
 			? { zdr: true, order: [cfg.provider], allow_fallbacks: false }
 			: { zdr: true },
 	};
+
+	if (cfg.tools !== undefined && cfg.tools.length > 0) {
+		body.tools = cfg.tools;
+		body.tool_choice = "auto";
+	}
+
+	return body;
 }
 
 async function safeReadText(response: Response): Promise<string> {
@@ -113,11 +133,63 @@ function extractUsage(usageRaw: Record<string, unknown> | undefined): Usage {
 }
 
 /**
- * A single SSE chunk can carry a content delta AND the final usage payload in the same object
- * (some providers fold the last delta and usage together). Returns 0-2 events, delta before done,
- * so callers must emit them in array order rather than collapsing to a single event.
+ * Streamed `tool_calls` arrive as index-addressed fragments across many chunks (OpenRouter's
+ * OpenAI-compatible delta shape): the first fragment for an index usually carries `id` and
+ * `function.name`, every fragment appends to `function.arguments`. This accumulates fragments
+ * across the whole stream, scoped to one `streamChat` call.
  */
-function interpretChunk(chunk: unknown): StreamEvent[] {
+type ToolCallAccumulator = Map<number, { id?: string; name?: string; arguments: string }>;
+
+function newToolCallAccumulator(): ToolCallAccumulator {
+	return new Map();
+}
+
+function accumulateToolCalls(acc: ToolCallAccumulator, deltaToolCalls: unknown): void {
+	if (!Array.isArray(deltaToolCalls)) return;
+
+	for (const item of deltaToolCalls) {
+		if (!isRecord(item)) continue;
+		const index = typeof item.index === "number" ? item.index : 0;
+		const entry = acc.get(index) ?? { arguments: "" };
+
+		if (typeof item.id === "string" && item.id.length > 0) {
+			entry.id = item.id;
+		}
+		const fn = isRecord(item.function) ? item.function : undefined;
+		if (typeof fn?.name === "string" && fn.name.length > 0) {
+			entry.name = fn.name;
+		}
+		if (typeof fn?.arguments === "string") {
+			entry.arguments += fn.arguments;
+		}
+
+		acc.set(index, entry);
+	}
+}
+
+function finalizeToolCalls(acc: ToolCallAccumulator): StreamToolCall[] {
+	return Array.from(acc.entries())
+		.sort(([a], [b]) => a - b)
+		.map(([index, entry]) => ({
+			id: entry.id ?? `call_${index}`,
+			name: entry.name ?? "",
+			arguments: entry.arguments,
+		}));
+}
+
+/**
+ * A single SSE chunk can carry a content delta, tool-call fragments, and the final usage payload
+ * all in the same object (some providers fold the last delta and usage together). Returns 0-2
+ * events, delta/tool_calls before done, so callers must emit them in array order rather than
+ * collapsing to a single event. `acc` accumulates tool-call fragments across the whole stream;
+ * `state` tracks whether a `tool_calls` event has already been emitted this stream, so a
+ * `finish_reason` chunk and a later `usage` chunk don't each emit their own.
+ */
+function interpretChunk(
+	chunk: unknown,
+	acc: ToolCallAccumulator,
+	state: { sawToolCallDelta: boolean; toolCallsEmitted: boolean; finishReason: string | null },
+): StreamEvent[] {
 	if (!isRecord(chunk)) return [];
 
 	const events: StreamEvent[] = [];
@@ -131,17 +203,43 @@ function interpretChunk(chunk: unknown): StreamEvent[] {
 		events.push({ type: "delta", text: content });
 	}
 
+	if (delta?.tool_calls !== undefined) {
+		state.sawToolCallDelta = true;
+		accumulateToolCalls(acc, delta.tool_calls);
+	}
+
+	if (typeof firstChoice?.finish_reason === "string") {
+		state.finishReason = firstChoice.finish_reason;
+	}
+
+	const emitToolCallsIfNeeded = (): void => {
+		if (
+			!state.toolCallsEmitted &&
+			(state.finishReason === "tool_calls" || state.sawToolCallDelta)
+		) {
+			events.push({ type: "tool_calls", calls: finalizeToolCalls(acc) });
+			state.toolCallsEmitted = true;
+		}
+	};
+
+	if (state.finishReason === "tool_calls") {
+		emitToolCallsIfNeeded();
+	}
+
 	const usageRaw = isRecord(chunk.usage) ? chunk.usage : undefined;
 	if (usageRaw !== undefined) {
-		const finishReason =
-			typeof firstChoice?.finish_reason === "string" ? firstChoice.finish_reason : null;
-		events.push({ type: "done", usage: extractUsage(usageRaw), finish_reason: finishReason });
+		emitToolCallsIfNeeded();
+		events.push({ type: "done", usage: extractUsage(usageRaw), finish_reason: state.finishReason });
 	}
 
 	return events;
 }
 
-function parseSseLine(rawLine: string): StreamEvent[] | typeof SSE_DONE {
+function parseSseLine(
+	rawLine: string,
+	acc: ToolCallAccumulator,
+	state: { sawToolCallDelta: boolean; toolCallsEmitted: boolean; finishReason: string | null },
+): StreamEvent[] | typeof SSE_DONE {
 	const line = rawLine.endsWith("\r") ? rawLine.slice(0, -1) : rawLine;
 	if (line.length === 0) return [];
 	if (line.startsWith(":")) return []; // comment / keepalive
@@ -157,7 +255,7 @@ function parseSseLine(rawLine: string): StreamEvent[] | typeof SSE_DONE {
 		return [{ type: "error", message: `unparseable SSE chunk: ${data}` }];
 	}
 
-	return interpretChunk(chunk);
+	return interpretChunk(chunk, acc, state);
 }
 
 export async function* streamChat(
@@ -188,6 +286,12 @@ export async function* streamChat(
 	const reader = response.body.getReader();
 	const decoder = new TextDecoder();
 	let buffer = "";
+	const toolCallAcc = newToolCallAccumulator();
+	const toolCallState = {
+		sawToolCallDelta: false,
+		toolCallsEmitted: false,
+		finishReason: null as string | null,
+	};
 
 	try {
 		while (true) {
@@ -203,7 +307,7 @@ export async function* streamChat(
 			buffer = done ? "" : (lines.pop() ?? "");
 
 			for (const line of lines) {
-				const parsed = parseSseLine(line);
+				const parsed = parseSseLine(line, toolCallAcc, toolCallState);
 				if (parsed === SSE_DONE) return;
 				for (const event of parsed) {
 					yield event;

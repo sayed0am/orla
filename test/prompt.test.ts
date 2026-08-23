@@ -61,6 +61,53 @@ describe("buildMessages ordering", () => {
 	});
 });
 
+describe("buildMessages toolsPrompt (PRD §12 MCP)", () => {
+	it("places the tools prompt after the memory block and before history", () => {
+		const messages = buildMessages({
+			...baseInput(),
+			toolsPrompt: "The following external tools are available: s1__list_events (read-tier).",
+		});
+
+		expect(messages).toHaveLength(6);
+		expect(messages[0]?.role).toBe("system"); // static system prompt
+		expect(messages[1]?.role).toBe("system"); // memory block
+		expect(messages[2]?.role).toBe("system"); // tools prompt
+		expect(messages[2]?.content).toEqual([
+			{
+				type: "text",
+				text: "The following external tools are available: s1__list_events (read-tier).",
+				cache_control: { type: "ephemeral" },
+			},
+		]);
+		expect(messages[3]).toEqual({ role: "user", content: "hey" });
+		expect(messages[4]).toEqual({ role: "assistant", content: "hi there" });
+		expect(messages[5]?.role).toBe("user");
+	});
+
+	it("places the tools prompt before the history summary when both are present", () => {
+		const messages = buildMessages({
+			...baseInput(),
+			toolsPrompt: "Tools available: s1__list_events.",
+			historySummary: "Earlier summary text.",
+		});
+
+		expect(messages).toHaveLength(7);
+		expect(messages[1]?.role).toBe("system"); // memory
+		expect(JSON.stringify(messages[2]?.content)).toContain("Tools available");
+		expect(JSON.stringify(messages[3]?.content)).toContain("Summary of the earlier part");
+	});
+
+	it("omits the tools prompt entirely when undefined or empty (byte-identical to before)", () => {
+		const withoutField = buildMessages(baseInput());
+		const withEmptyString = buildMessages({ ...baseInput(), toolsPrompt: "" });
+		expect(withoutField).toEqual(withEmptyString);
+		expect(withoutField).toHaveLength(5);
+		for (const message of withoutField) {
+			expect(JSON.stringify(message.content)).not.toContain("external tools");
+		}
+	});
+});
+
 describe("buildMessages historySummary (PRD §5 compaction)", () => {
 	it("places the summary after the memory block and before history", () => {
 		const messages = buildMessages({

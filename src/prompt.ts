@@ -15,10 +15,17 @@ export type ContentPart = {
 	cache_control?: { type: "ephemeral" };
 };
 
-export type ChatMessage = {
-	role: "system" | "user" | "assistant";
-	content: string | ContentPart[];
+/** One entry of an assistant message's `tool_calls` (OpenRouter/OpenAI tool-calling shape). */
+export type ToolCall = {
+	id: string;
+	type: "function";
+	function: { name: string; arguments: string };
 };
+
+export type ChatMessage =
+	| { role: "system" | "user"; content: string | ContentPart[] }
+	| { role: "assistant"; content: string | ContentPart[] | null; tool_calls?: ToolCall[] }
+	| { role: "tool"; tool_call_id: string; content: string };
 
 export type PromptInput = {
 	/** Persona name, injected into the (cached) system prompt. */
@@ -31,6 +38,12 @@ export type PromptInput = {
 	 * Undefined (or "") when the conversation has never been compacted.
 	 */
 	historySummary?: string;
+	/**
+	 * Rendered MCP tool listing (`src/tools.ts`'s `renderToolsForPrompt`), one more cached system
+	 * part placed after the memory block and before the history summary. Undefined (or "") when no
+	 * MCP servers are enabled — the no-tools case must render byte-identical to before tools existed.
+	 */
+	toolsPrompt?: string;
 	/** Append-only prior turns, oldest first. */
 	history: { role: "user" | "assistant"; content: string }[];
 	/** The new turn. */
@@ -68,6 +81,10 @@ export function buildMessages(input: PromptInput): ChatMessage[] {
 
 	if (input.memoryBlock.length > 0) {
 		messages.push(cachedSystemPart(input.memoryBlock));
+	}
+
+	if (input.toolsPrompt !== undefined && input.toolsPrompt.length > 0) {
+		messages.push(cachedSystemPart(input.toolsPrompt));
 	}
 
 	if (input.historySummary !== undefined && input.historySummary.length > 0) {

@@ -107,6 +107,14 @@ export function mountBrief(root, authStatus) {
 		view.appendChild(passkeysBody);
 	}
 
+	// MCP servers card (PRD §12) — below Passkeys, always present regardless of auth mode.
+	const mcpHeading = document.createElement("h3");
+	mcpHeading.textContent = "MCP servers";
+	view.appendChild(mcpHeading);
+	const mcpServersBody = document.createElement("div");
+	mcpServersBody.id = "mcp-servers-body";
+	view.appendChild(mcpServersBody);
+
 	let destroyed = false;
 	let currentDate = todayUtc();
 
@@ -894,6 +902,279 @@ export function mountBrief(root, authStatus) {
 		memoryBody.appendChild(memoryPreviewDetails());
 	}
 
+	// --- MCP servers (PRD §12) ---
+
+	function formatMcpWhen(iso) {
+		if (!iso) {
+			return "never";
+		}
+		try {
+			return new Date(iso).toLocaleString();
+		} catch {
+			return iso;
+		}
+	}
+
+	function mcpServerRow(server, onChanged, showMcpMessage) {
+		const row = document.createElement("div");
+		row.className = "mcp-server-row";
+
+		const info = document.createElement("div");
+		info.className = "mcp-server-info";
+
+		const nameLabel = document.createElement("label");
+		nameLabel.className = "mcp-server-name";
+
+		const toggle = document.createElement("input");
+		toggle.type = "checkbox";
+		toggle.checked = server.enabled;
+		toggle.style.marginRight = "0.5rem";
+		toggle.addEventListener("change", async () => {
+			const next = toggle.checked;
+			toggle.disabled = true;
+			try {
+				const res = await apiFetch(`/api/mcp/servers/${server.id}`, {
+					method: "PATCH",
+					headers: { "content-type": "application/json" },
+					body: JSON.stringify({ enabled: next }),
+				});
+				if (!res.ok) {
+					throw new Error(`http ${res.status}`);
+				}
+				onChanged();
+			} catch (err) {
+				console.error("brief: failed to toggle MCP server", err);
+				showMcpMessage("Couldn't update that server.");
+				toggle.checked = !next;
+				toggle.disabled = false;
+			}
+		});
+		nameLabel.appendChild(toggle);
+		nameLabel.appendChild(document.createTextNode(server.name));
+		info.appendChild(nameLabel);
+
+		const meta = document.createElement("div");
+		meta.className = "mcp-server-meta hint";
+		const toolWord = server.tool_count === 1 ? "tool" : "tools";
+		meta.textContent =
+			`${server.tool_count} ${toolWord} (${server.tiers.read} read, ${server.tiers.act} act) · ` +
+			`Schema refreshed ${formatMcpWhen(server.schema_refreshed_at)}`;
+		info.appendChild(meta);
+
+		row.appendChild(info);
+
+		const actions = document.createElement("div");
+		actions.className = "mcp-server-actions";
+
+		const testButton = document.createElement("button");
+		testButton.type = "button";
+		testButton.textContent = "Test";
+		testButton.addEventListener("click", async () => {
+			testButton.disabled = true;
+			testButton.textContent = "Testing…";
+			try {
+				const res = await apiFetch(`/api/mcp/servers/${server.id}/test`, { method: "POST" });
+				const body = await res.json();
+				if (!res.ok || !body.ok) {
+					showMcpMessage(body.error || "Couldn't reach that server.");
+				} else {
+					showMcpMessage(`Connected — ${body.tools.length} tool(s) found.`, true);
+				}
+			} catch (err) {
+				console.error("brief: failed to test MCP server", err);
+				showMcpMessage("Couldn't reach that server.");
+			} finally {
+				if (!destroyed) {
+					testButton.disabled = false;
+					testButton.textContent = "Test";
+				}
+			}
+		});
+		actions.appendChild(testButton);
+
+		const refreshButton = document.createElement("button");
+		refreshButton.type = "button";
+		refreshButton.textContent = "Refresh schema";
+		refreshButton.addEventListener("click", async () => {
+			refreshButton.disabled = true;
+			refreshButton.textContent = "Refreshing…";
+			try {
+				const res = await apiFetch(`/api/mcp/servers/${server.id}/refresh`, { method: "POST" });
+				if (!res.ok) {
+					throw new Error(`http ${res.status}`);
+				}
+				onChanged();
+			} catch (err) {
+				console.error("brief: failed to refresh MCP server", err);
+				showMcpMessage("Couldn't refresh that server's tools.");
+			} finally {
+				if (!destroyed) {
+					refreshButton.disabled = false;
+					refreshButton.textContent = "Refresh schema";
+				}
+			}
+		});
+		actions.appendChild(refreshButton);
+
+		const removeButton = document.createElement("button");
+		removeButton.type = "button";
+		removeButton.textContent = "Remove";
+		removeButton.addEventListener("click", async () => {
+			removeButton.disabled = true;
+			try {
+				const res = await apiFetch(`/api/mcp/servers/${server.id}`, { method: "DELETE" });
+				if (!res.ok && res.status !== 204) {
+					throw new Error(`http ${res.status}`);
+				}
+				onChanged();
+			} catch (err) {
+				console.error("brief: failed to remove MCP server", err);
+				showMcpMessage("Couldn't remove that server.");
+				if (!destroyed) {
+					removeButton.disabled = false;
+				}
+			}
+		});
+		actions.appendChild(removeButton);
+
+		row.appendChild(actions);
+		return row;
+	}
+
+	function mcpAddRow(messageBox) {
+		const row = document.createElement("div");
+		row.className = "mcp-add-row";
+
+		const nameInput = document.createElement("input");
+		nameInput.type = "text";
+		nameInput.placeholder = "Name (e.g. Calendar)";
+		nameInput.maxLength = 60;
+
+		const urlInput = document.createElement("input");
+		urlInput.type = "text";
+		urlInput.placeholder = "https://your-mcp-server.example.com/mcp";
+
+		const authInput = document.createElement("input");
+		authInput.type = "text";
+		authInput.placeholder = "Authorization header value (optional, e.g. Bearer …)";
+
+		const disclosure = document.createElement("p");
+		disclosure.className = "mcp-disclosure";
+		disclosure.textContent =
+			"ZDR covers inference routing only; each MCP server processes data under its own policy.";
+
+		const button = document.createElement("button");
+		button.type = "button";
+		button.className = "primary";
+		button.textContent = "Add server";
+
+		async function submit() {
+			const name = nameInput.value.trim();
+			const url = urlInput.value.trim();
+			if (name.length === 0 || url.length === 0) {
+				return;
+			}
+			button.disabled = true;
+			messageBox.hidden = true;
+			try {
+				const res = await apiFetch("/api/mcp/servers", {
+					method: "POST",
+					headers: { "content-type": "application/json" },
+					body: JSON.stringify({
+						name,
+						url,
+						auth_header: authInput.value.trim() || undefined,
+					}),
+				});
+				const body = await res.json();
+				if (!res.ok) {
+					throw new Error(body.error || `http ${res.status}`);
+				}
+				nameInput.value = "";
+				urlInput.value = "";
+				authInput.value = "";
+				if (!destroyed) {
+					await loadMcpServers();
+				}
+			} catch (err) {
+				console.error("brief: failed to add MCP server", err);
+				if (!destroyed) {
+					messageBox.className = "mcp-error hint";
+					messageBox.textContent = err?.message || "Couldn't add that server.";
+					messageBox.hidden = false;
+					button.disabled = false;
+				}
+			}
+		}
+
+		button.addEventListener("click", submit);
+
+		row.appendChild(nameInput);
+		row.appendChild(urlInput);
+		row.appendChild(authInput);
+		row.appendChild(disclosure);
+		row.appendChild(button);
+		return row;
+	}
+
+	async function loadMcpServers() {
+		if (!mcpServersBody) {
+			return;
+		}
+		mcpServersBody.innerHTML = `<p class="hint">Loading…</p>`;
+
+		let res;
+		try {
+			res = await apiFetch("/api/mcp/servers");
+		} catch (err) {
+			console.error("brief: failed to load MCP servers", err);
+			if (!destroyed) {
+				mcpServersBody.innerHTML = `<p class="hint">Couldn't load MCP servers.</p>`;
+			}
+			return;
+		}
+		if (destroyed) {
+			return;
+		}
+		if (!res.ok) {
+			mcpServersBody.innerHTML = `<p class="hint">Couldn't load MCP servers.</p>`;
+			return;
+		}
+
+		const data = await res.json();
+		const servers = data.servers ?? [];
+
+		mcpServersBody.innerHTML = "";
+		const card = document.createElement("div");
+		card.className = "mcp-servers-card";
+
+		const messageBox = document.createElement("p");
+		messageBox.className = "mcp-error hint";
+		messageBox.hidden = true;
+
+		function showMcpMessage(message, ok) {
+			messageBox.className = ok ? "hint" : "mcp-error hint";
+			messageBox.textContent = message;
+			messageBox.hidden = false;
+		}
+
+		if (servers.length === 0) {
+			const p = document.createElement("p");
+			p.className = "hint";
+			p.textContent = "No MCP servers connected.";
+			card.appendChild(p);
+		} else {
+			for (const server of servers) {
+				card.appendChild(mcpServerRow(server, loadMcpServers, showMcpMessage));
+			}
+		}
+
+		card.appendChild(mcpAddRow(messageBox));
+		card.appendChild(messageBox);
+
+		mcpServersBody.appendChild(card);
+	}
+
 	// --- Passkeys (Phase 3 step 1) ---
 
 	function formatPasskeyWhen(iso) {
@@ -1104,6 +1385,7 @@ export function mountBrief(root, authStatus) {
 	loadMaintenance();
 	loadMemory();
 	loadPasskeys();
+	loadMcpServers();
 
 	return function unmount() {
 		destroyed = true;

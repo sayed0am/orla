@@ -62,7 +62,9 @@ export function mountChat(root) {
 	view.className = "chat-view";
 	view.innerHTML = `
 		<div class="conversation-list" id="conversation-list">
-			<button type="button" class="primary" id="chat-new" style="width:100%;margin-bottom:0.5rem;">New</button>
+			<button type="button" class="primary" id="chat-new" style="width:100%;margin-bottom:0.5rem;">
+				New<span id="actions-badge" class="actions-pending-badge" hidden></span>
+			</button>
 			<div id="conversation-items"></div>
 		</div>
 		<div class="chat-main hidden" id="chat-main">
@@ -86,6 +88,7 @@ export function mountChat(root) {
 	const sendButton = view.querySelector("#chat-send");
 	const newButton = view.querySelector("#chat-new");
 	const backButton = view.querySelector("#chat-back");
+	const actionsBadge = view.querySelector("#actions-badge");
 
 	let destroyed = false;
 	let activeConversationId;
@@ -221,6 +224,115 @@ export function mountChat(root) {
 		return bubble;
 	}
 
+	/** `event: tool` from the stream (PRD §12): a small chip under the assistant bubble. */
+	function appendToolChip(data) {
+		const chip = document.createElement("div");
+		chip.className = data.status === "error" ? "tool-chip error" : "tool-chip";
+		chip.textContent = `🔧 ${data.name} · ${data.status === "error" ? "error" : "done"}`;
+		if (data.preview) {
+			chip.title = data.preview;
+		}
+		messagesEl.appendChild(chip);
+		if (!userScrolledUp) {
+			scrollToBottom();
+		}
+	}
+
+	/** `event: confirm` from the stream (PRD §12): an act-tier tool call awaiting tap-to-confirm. */
+	function appendConfirmCard(data) {
+		const card = document.createElement("div");
+		card.className = "confirm-card";
+
+		const name = document.createElement("div");
+		name.className = "confirm-card-name";
+		name.textContent = `🔧 ${data.name}`;
+		card.appendChild(name);
+
+		const pre = document.createElement("pre");
+		pre.textContent = JSON.stringify(data.arguments ?? {}, null, 2);
+		card.appendChild(pre);
+
+		const actionsRow = document.createElement("div");
+		actionsRow.className = "confirm-card-actions";
+
+		const allowButton = document.createElement("button");
+		allowButton.type = "button";
+		allowButton.className = "primary";
+		allowButton.textContent = "Allow";
+
+		const denyButton = document.createElement("button");
+		denyButton.type = "button";
+		denyButton.textContent = "Don't allow";
+
+		async function resolve(path, deniedText) {
+			allowButton.disabled = true;
+			denyButton.disabled = true;
+			try {
+				const res = await apiFetch(`/api/actions/${data.action_id}/${path}`, { method: "POST" });
+				if (!res.ok) {
+					throw new Error(`http ${res.status}`);
+				}
+				const body = await res.json();
+				actionsRow.remove();
+				const result = document.createElement("div");
+				result.className = "confirm-card-result";
+				if (deniedText) {
+					result.textContent = deniedText;
+				} else {
+					const resultData = body.action?.result ?? {};
+					const text =
+						typeof resultData.text === "string"
+							? resultData.text
+							: (resultData.error ?? JSON.stringify(resultData));
+					result.textContent = `"${text}"`;
+				}
+				card.appendChild(result);
+				loadActionsBadge();
+			} catch (err) {
+				console.error(`chat: failed to resolve pending action (${path})`, err);
+				allowButton.disabled = false;
+				denyButton.disabled = false;
+			}
+		}
+
+		allowButton.addEventListener("click", () => resolve("confirm"));
+		denyButton.addEventListener("click", () => resolve("reject", "Not allowed."));
+
+		actionsRow.appendChild(allowButton);
+		actionsRow.appendChild(denyButton);
+		card.appendChild(actionsRow);
+
+		messagesEl.appendChild(card);
+		if (!userScrolledUp) {
+			scrollToBottom();
+		}
+	}
+
+	/** Shows a pending-actions count badge on the New button when any act-tier calls await review. */
+	async function loadActionsBadge() {
+		if (!actionsBadge) {
+			return;
+		}
+		let res;
+		try {
+			res = await apiFetch("/api/actions?status=pending");
+		} catch (err) {
+			console.error("chat: failed to load pending actions", err);
+			return;
+		}
+		if (destroyed || !res.ok) {
+			return;
+		}
+		const data = await res.json();
+		const count = (data.actions ?? []).length;
+		if (count > 0) {
+			actionsBadge.textContent = String(count);
+			actionsBadge.hidden = false;
+		} else {
+			actionsBadge.hidden = true;
+		}
+	}
+
 	function appendErrorBubble(text) {
 		const bubble = document.createElement("div");
 		bubble.className = "bubble error";
@@ -298,6 +410,19 @@ export function mountChat(root) {
 					}
 					assistantText += typeof delta === "string" ? delta : (delta.text ?? "");
 					scheduleAssistantRender();
+				} else if (evt.event === "tool") {
+					try {
+						appendToolChip(JSON.parse(evt.data));
+					} catch {
+						// Malformed event payload — skip the chip rather than break the stream.
+					}
+				} else if (evt.event === "confirm") {
+					try {
+						appendConfirmCard(JSON.parse(evt.data));
+					} catch {
+						// Malformed event payload — skip the card rather than break the stream.
+					}
+					loadActionsBadge();
 				} else if (evt.event === "error") {
 					try {
 						streamError = JSON.parse(evt.data).message;
@@ -341,6 +466,7 @@ export function mountChat(root) {
 	});
 
 	loadConversations();
+	loadActionsBadge();
 
 	return function unmount() {
 		destroyed = true;
