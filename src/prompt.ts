@@ -2,10 +2,11 @@
  * Cache-ordered prompt builder (PRD §5 "Cost discipline", PLAN step 5). Pure — no I/O, no clock
  * reads outside the explicit `now` input.
  *
- * Ordering is load-bearing: static system prompt -> memory block -> append-only history -> the new
- * user turn, with any dynamic context (retrieved notes, time-of-day, etc.) appended only to that
- * final turn. Everything before the final message must be byte-identical across calls that share
- * the same assistantName / memoryBlock / history, so the routed provider can cache it.
+ * Ordering is load-bearing: static system prompt -> memory block -> history summary (if any,
+ * PRD §5 compaction) -> append-only history -> the new user turn, with any dynamic context
+ * (retrieved notes, time-of-day, etc.) appended only to that final turn. Everything before the
+ * final message must be byte-identical across calls that share the same assistantName /
+ * memoryBlock / historySummary / history, so the routed provider can cache it.
  */
 
 export type ContentPart = {
@@ -24,6 +25,12 @@ export type PromptInput = {
 	assistantName: string;
 	/** Rendered memory facts (Option A, PRD §8). May be "" to omit the block entirely. */
 	memoryBlock: string;
+	/**
+	 * Summary of the conversation's compacted-out history (PRD §5 compaction, src/compaction.ts).
+	 * Rendered as one more cached system part, after the memory block and before `history`.
+	 * Undefined (or "") when the conversation has never been compacted.
+	 */
+	historySummary?: string;
 	/** Append-only prior turns, oldest first. */
 	history: { role: "user" | "assistant"; content: string }[];
 	/** The new turn. */
@@ -61,6 +68,14 @@ export function buildMessages(input: PromptInput): ChatMessage[] {
 
 	if (input.memoryBlock.length > 0) {
 		messages.push(cachedSystemPart(input.memoryBlock));
+	}
+
+	if (input.historySummary !== undefined && input.historySummary.length > 0) {
+		messages.push(
+			cachedSystemPart(
+				`Summary of the earlier part of this conversation:\n${input.historySummary}`,
+			),
+		);
 	}
 
 	for (const turn of input.history) {

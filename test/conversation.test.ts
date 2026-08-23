@@ -1,7 +1,7 @@
-import { env, SELF } from "cloudflare:test";
+import { env, runInDurableObject, SELF } from "cloudflare:test";
 import { afterEach, beforeAll, describe, expect, it } from "vitest";
 import { setJwksFetchForTests } from "../src/auth";
-import { setLlmFetchForTests } from "../src/conversation";
+import { setCompactionThresholdForTests, setLlmFetchForTests } from "../src/conversation";
 import { handlePostMessage } from "../src/routes/conversations";
 import { fakeJwksFetch, withAccessHeader } from "./auth-helpers";
 
@@ -11,6 +11,7 @@ beforeAll(() => {
 
 afterEach(() => {
 	setLlmFetchForTests(undefined);
+	setCompactionThresholdForTests(undefined);
 });
 
 type ConversationRecord = { id: string; title: string; created_at: string; updated_at: string };
@@ -328,5 +329,259 @@ describe("POST /api/conversations/:id/messages", () => {
 			const chunk = await reader.read();
 			if (chunk.done) break;
 		}
+	});
+});
+
+/** Single-shot streaming reply: one delta chunk carrying the whole text, then `done` and `[DONE]`. */
+function fakeStreamingReplyResponse(replyText: string): Response {
+	const encoder = new TextEncoder();
+	const lines = [
+		`data: ${JSON.stringify({ choices: [{ delta: { content: replyText } }] })}\n\n`,
+		`data: ${JSON.stringify({
+			choices: [{ delta: {}, finish_reason: "stop" }],
+			usage: { prompt_tokens: 20, completion_tokens: 5 },
+		})}\n\n`,
+		"data: [DONE]\n\n",
+	];
+	const stream = new ReadableStream<Uint8Array>({
+		start(controller) {
+			for (const line of lines) controller.enqueue(encoder.encode(line));
+			controller.close();
+		},
+	});
+	return new Response(stream, { status: 200 });
+}
+
+/** Pads/truncates `s` to exactly `len` characters — used to make turn sizes exactly predictable. */
+function fixedLength(s: string, len: number): string {
+	return s.length >= len ? s.slice(0, len) : s + ".".repeat(len - s.length);
+}
+
+function conversationDOStub(id: string) {
+	return env.CONVERSATION.get(env.CONVERSATION.idFromName(id));
+}
+
+async function turnCompactedFlags(id: string): Promise<Array<{ seq: number; compacted: number }>> {
+	return runInDurableObject(conversationDOStub(id), (_instance, state) =>
+		state.storage.sql
+			.exec<{ seq: number; compacted: number }>("SELECT seq, compacted FROM turns ORDER BY seq ASC")
+			.toArray(),
+	);
+}
+
+describe("Conversation#send history compaction (PRD §5)", () => {
+	async function createConversation(): Promise<{ id: string }> {
+		const res = await SELF.fetch(
+			"http://example.com/api/conversations",
+			await withAccessHeader({ method: "POST" }),
+		);
+		return (await res.json()) as { id: string };
+	}
+
+	async function postMessage(id: string, message: string): Promise<Response> {
+		return SELF.fetch(
+			`http://example.com/api/conversations/${id}/messages`,
+			await withAccessHeader({
+				method: "POST",
+				headers: { "content-type": "application/json" },
+				body: JSON.stringify({ message }),
+			}),
+		);
+	}
+
+	// Turn content is fixed at 18 chars/turn so the char-count math is exact against a 200-char
+	// threshold: 10 turns = 180 (<= 200, no compaction), 12 turns = 216 (> 200, compacts).
+	const TURN_LEN = 18;
+
+	it(
+		"compacts the oldest turns past the threshold, keeps the cached prefix stable, skips a " +
+			"second compaction while still under threshold, then folds the prior summary into the next one",
+		async () => {
+			setCompactionThresholdForTests(200);
+			const conv = await createConversation();
+
+			const requests: Array<{ body: Record<string, unknown> }> = [];
+			let streamCallIndex = 0;
+			let compactionCallIndex = 0;
+
+			setLlmFetchForTests(async (_input, init) => {
+				const body = JSON.parse((init?.body as string) ?? "{}") as Record<string, unknown>;
+				requests.push({ body });
+
+				if (body.stream === false) {
+					compactionCallIndex++;
+					return Response.json({
+						choices: [
+							{
+								message: {
+									content: JSON.stringify({ summary: `Summary ${compactionCallIndex}` }),
+								},
+							},
+						],
+						usage: { prompt_tokens: 12340 + compactionCallIndex, completion_tokens: 10 },
+					});
+				}
+
+				streamCallIndex++;
+				return fakeStreamingReplyResponse(fixedLength(`assistant-${streamCallIndex}`, TURN_LEN));
+			});
+
+			// Seed 6 user/assistant pairs (12 turns, 216 chars) — each seeding send's own threshold
+			// check runs against only the *already persisted* turns (0, 2, 4, 6, 8, 10 of them), so
+			// none of these six sends themselves cross the 200-char threshold.
+			for (let i = 1; i <= 6; i++) {
+				await (await postMessage(conv.id, fixedLength(`seed-u-${i}`, TURN_LEN))).text();
+			}
+			expect(requests.filter((r) => r.body.stream === false)).toHaveLength(0);
+
+			// --- Send #7: 12 live turns (216 chars) now exceeds the 200-char threshold. ---
+			await (await postMessage(conv.id, fixedLength("seed-u-7", TURN_LEN))).text();
+
+			const compactionRequests = requests.filter((r) => r.body.stream === false);
+			expect(compactionRequests).toHaveLength(1);
+			const compactionMessages1 = compactionRequests[0]?.body.messages as Array<{
+				content: unknown;
+			}>;
+			const compactionBody1 = JSON.parse(compactionMessages1[1]?.content as string) as {
+				previous_summary: string | null;
+				turns: Array<{ role: string; content: string }>;
+			};
+
+			// (a) the compaction request carries the 4 oldest turns, not the last 8.
+			expect(compactionBody1.previous_summary).toBeNull();
+			expect(compactionBody1.turns.map((t) => t.content)).toEqual([
+				fixedLength("seed-u-1", TURN_LEN),
+				fixedLength("assistant-1", TURN_LEN),
+				fixedLength("seed-u-2", TURN_LEN),
+				fixedLength("assistant-2", TURN_LEN),
+			]);
+
+			// (b) the subsequent streaming request is [system, (memory?), summary] then only the 8
+			// kept turns plus the new message.
+			const send7Messages = requests[requests.length - 1]?.body.messages as Array<{
+				role: string;
+				content: unknown;
+			}>;
+			const summaryIdx = send7Messages.findIndex((m) =>
+				JSON.stringify(m.content).includes("Summary of the earlier part of this conversation"),
+			);
+			expect(summaryIdx).toBeGreaterThan(-1);
+			expect(send7Messages[summaryIdx]?.role).toBe("system");
+			expect(send7Messages[summaryIdx]?.content).toEqual([
+				{
+					type: "text",
+					text: "Summary of the earlier part of this conversation:\nSummary 1",
+					cache_control: { type: "ephemeral" },
+				},
+			]);
+			for (const m of send7Messages.slice(0, summaryIdx)) {
+				expect(m.role).toBe("system");
+			}
+			const send7Rest = send7Messages.slice(summaryIdx + 1);
+			expect(send7Rest.map((m) => m.content)).toEqual([
+				fixedLength("seed-u-3", TURN_LEN),
+				fixedLength("assistant-3", TURN_LEN),
+				fixedLength("seed-u-4", TURN_LEN),
+				fixedLength("assistant-4", TURN_LEN),
+				fixedLength("seed-u-5", TURN_LEN),
+				fixedLength("assistant-5", TURN_LEN),
+				fixedLength("seed-u-6", TURN_LEN),
+				fixedLength("assistant-6", TURN_LEN),
+				fixedLength("seed-u-7", TURN_LEN),
+			]);
+
+			// (c) the 4 oldest turns (lowest seq) are flagged compacted; the rest are not.
+			const flags = await turnCompactedFlags(conv.id);
+			const sortedSeqs = flags.map((f) => f.seq).sort((a, b) => a - b);
+			const compactedSeqs = flags.filter((f) => f.compacted === 1).map((f) => f.seq);
+			expect(compactedSeqs).toEqual(sortedSeqs.slice(0, 4));
+
+			// (d) the compaction call got its own llm_calls row.
+			const compactionRow = await env.ORLA_DB.prepare(
+				"SELECT job_type, prompt_tokens, completion_tokens FROM llm_calls WHERE prompt_tokens = ?",
+			)
+				.bind(12341)
+				.first<{ job_type: string; prompt_tokens: number; completion_tokens: number }>();
+			expect(compactionRow).toEqual({
+				job_type: "chat",
+				prompt_tokens: 12341,
+				completion_tokens: 10,
+			});
+
+			const summaryAfterFirstCompaction = await conversationDOStub(conv.id).getSummary();
+			expect(summaryAfterFirstCompaction).toEqual({
+				text: "Summary 1",
+				through_seq: sortedSeqs[3],
+			});
+
+			// --- Send #8: only 10 live turns (180 chars) — below threshold, no compaction. ---
+			const beforeSend8 = requests.length;
+			await (await postMessage(conv.id, fixedLength("seed-u-8", TURN_LEN))).text();
+			expect(requests.length).toBe(beforeSend8 + 1); // no extra compaction request
+			expect(requests[beforeSend8]?.body.stream).toBe(true);
+
+			// (e) the summary text is unchanged, and the prefix is exactly the previous request's
+			// full messages plus the newly appended assistant turn.
+			const send8Messages = requests[beforeSend8]?.body.messages as Array<{
+				role: string;
+				content: unknown;
+			}>;
+			expect(send8Messages.slice(0, -1)).toEqual([
+				...send7Messages,
+				{ role: "assistant", content: fixedLength("assistant-7", TURN_LEN) },
+			]);
+
+			const summaryAfterSend8 = await conversationDOStub(conv.id).getSummary();
+			expect(summaryAfterSend8).toEqual(summaryAfterFirstCompaction); // unchanged
+
+			// --- Send #9: back up to 12 live turns (216 chars) — compacts again. ---
+			const beforeSend9 = requests.length;
+			await (await postMessage(conv.id, fixedLength("seed-u-9", TURN_LEN))).text();
+			const secondCompactionRequests = requests
+				.slice(beforeSend9)
+				.filter((r) => r.body.stream === false);
+			expect(secondCompactionRequests).toHaveLength(1);
+
+			const compactionMessages2 = secondCompactionRequests[0]?.body.messages as Array<{
+				content: unknown;
+			}>;
+			const compactionBody2 = JSON.parse(compactionMessages2[1]?.content as string) as {
+				previous_summary: string | null;
+			};
+
+			// Second compaction folds the first summary in.
+			expect(compactionBody2.previous_summary).toBe("Summary 1");
+		},
+	);
+
+	it("skips compaction on an LLM failure: the send still streams normally and no summary is stored", async () => {
+		setCompactionThresholdForTests(1); // any non-empty history exceeds this
+		const conv = await createConversation();
+
+		setLlmFetchForTests(async (_input, init) => {
+			const body = JSON.parse((init?.body as string) ?? "{}") as Record<string, unknown>;
+			if (body.stream === false) {
+				return new Response("upstream failure", { status: 500 });
+			}
+			return fakeStreamingReplyResponse("ok");
+		});
+
+		// Seed enough turns that a compaction attempt has non-empty input (more than
+		// KEEP_RECENT_TURNS turns already persisted before the triggering send).
+		for (let i = 1; i <= 5; i++) {
+			await (await postMessage(conv.id, `seed ${i}`)).text();
+		}
+
+		const res = await postMessage(conv.id, "one more message");
+		expect(res.status).toBe(200);
+		const text = await res.text();
+		expect(text).toContain("event: delta");
+		expect(text).not.toContain("event: error");
+
+		expect(await conversationDOStub(conv.id).getSummary()).toBeNull();
+
+		const flags = await turnCompactedFlags(conv.id);
+		expect(flags.every((f) => f.compacted === 0)).toBe(true);
+		expect(flags).toHaveLength(12); // 5 seed pairs + this send's user+assistant turns
 	});
 });

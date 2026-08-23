@@ -5,6 +5,12 @@
  */
 
 import { DurableObject } from "cloudflare:workers";
+import {
+	buildCompactionMessages,
+	COMPACTION_THRESHOLD_CHARS,
+	KEEP_RECENT_TURNS,
+	normalizeCompactionOutput,
+} from "./compaction";
 import { logLlmCall } from "./cost";
 import { completeJson, streamChat, type Usage } from "./llm";
 import { buildMessages } from "./prompt";
@@ -23,6 +29,9 @@ export type Turn = {
 	content: string;
 	created_at: string;
 };
+
+/** The conversation's rolling history summary (PRD §5 compaction, src/compaction.ts). */
+export type StoredSummary = { text: string; through_seq: number };
 
 export type SendOpts = {
 	/** The conversation's D1 index row id — the DO cannot recover this from its own identity. */
@@ -49,6 +58,15 @@ export function setLlmFetchForTests(f: typeof fetch | undefined): void {
 	testLlmFetch = f;
 }
 
+// Test-only hook: lets tests trigger compaction with small inputs instead of needing to accumulate
+// ~48k chars of real turns.
+let testCompactionThreshold: number | undefined;
+
+/** Test-only: override (or clear, with `undefined`) the compaction size threshold used by `send`. */
+export function setCompactionThresholdForTests(chars: number | undefined): void {
+	testCompactionThreshold = chars;
+}
+
 function sseEvent(event: string, data: unknown): string {
 	return `event: ${event}\ndata: ${JSON.stringify(data)}\n\n`;
 }
@@ -69,6 +87,20 @@ export class Conversation extends DurableObject<Env> {
 				)
 			`);
 
+			// Added after the initial schema (PRD §5 compaction) — existing DO instances created
+			// before this column existed need the ALTER TABLE; fresh ones need it too, since the
+			// CREATE TABLE above intentionally still doesn't declare it (kept close to the original
+			// schema for readability). `PRAGMA table_info` is the only reliable idempotency check
+			// since `ALTER TABLE ... ADD COLUMN` has no `IF NOT EXISTS` form in SQLite.
+			const columns = this.ctx.storage.sql
+				.exec<{ name: string }>("PRAGMA table_info(turns)")
+				.toArray();
+			if (!columns.some((column) => column.name === "compacted")) {
+				this.ctx.storage.sql.exec(
+					"ALTER TABLE turns ADD COLUMN compacted INTEGER NOT NULL DEFAULT 0",
+				);
+			}
+
 			const existing = await this.ctx.storage.get<string>("session_id");
 			if (existing === undefined) {
 				await this.ctx.storage.put("session_id", crypto.randomUUID());
@@ -80,6 +112,11 @@ export class Conversation extends DurableObject<Env> {
 		return this.ctx.storage.sql
 			.exec<Turn>("SELECT seq, role, content, created_at FROM turns ORDER BY seq ASC")
 			.toArray();
+	}
+
+	/** The conversation's current history summary (PRD §5 compaction), or `null` if never compacted. */
+	async getSummary(): Promise<StoredSummary | null> {
+		return (await this.ctx.storage.get<StoredSummary>("summary")) ?? null;
 	}
 
 	/**
@@ -102,12 +139,72 @@ export class Conversation extends DurableObject<Env> {
 		this.busy = true;
 
 		const sessionId = (await this.ctx.storage.get<string>("session_id")) ?? crypto.randomUUID();
-		const priorTurns = await this.listTurns();
-		const history = priorTurns.map((turn) => ({ role: turn.role, content: turn.content }));
+		const fetchImpl = testLlmFetch ?? fetch;
+
+		// PRD §5 compaction: only non-compacted turns count toward the size trigger and are ever
+		// sent as history — the cached prefix (system -> memory -> summary) only grows by appending
+		// between compactions.
+		let liveTurns = this.ctx.storage.sql
+			.exec<Turn>(
+				"SELECT seq, role, content, created_at FROM turns WHERE compacted = 0 ORDER BY seq ASC",
+			)
+			.toArray();
+
+		const compactionThreshold = testCompactionThreshold ?? COMPACTION_THRESHOLD_CHARS;
+		const liveChars = liveTurns.reduce((sum, turn) => sum + turn.content.length, 0);
+
+		if (liveChars > compactionThreshold) {
+			const toCompact = liveTurns.slice(0, Math.max(0, liveTurns.length - KEEP_RECENT_TURNS));
+			const lastToCompact = toCompact[toCompact.length - 1];
+
+			if (lastToCompact !== undefined) {
+				try {
+					const previousSummary = await this.ctx.storage.get<StoredSummary>("summary");
+					const compactionMessages = buildCompactionMessages({
+						previous_summary: previousSummary?.text ?? null,
+						turns: toCompact.map((turn) => ({ role: turn.role, content: turn.content })),
+					});
+
+					const compaction = await completeJson<unknown>(
+						compactionMessages,
+						{
+							apiKey: opts.apiKey,
+							model: opts.model,
+							baseUrl: opts.baseUrl,
+							sessionId,
+							jobType: "chat",
+						},
+						fetchImpl,
+					);
+
+					const normalized = normalizeCompactionOutput(compaction.value);
+					if (normalized) {
+						const throughSeq = lastToCompact.seq;
+						await this.ctx.storage.put<StoredSummary>("summary", {
+							text: normalized.summary,
+							through_seq: throughSeq,
+						});
+						this.ctx.storage.sql.exec("UPDATE turns SET compacted = 1 WHERE seq <= ?", throughSeq);
+						await logLlmCall(this.env.ORLA_DB, {
+							jobType: "chat",
+							model: opts.model,
+							usage: compaction.usage,
+						});
+						liveTurns = liveTurns.filter((turn) => turn.seq > throughSeq);
+					}
+					// Invalid output (failed `normalizeCompactionOutput`): skip compaction this turn,
+					// same as the LlmError case below — don't retry until the next send.
+				} catch {
+					// Compaction is best-effort and never blocks the chat turn: an LlmError (bad
+					// status, bad JSON) just skips compaction for this turn.
+				}
+			}
+		}
+
+		const history = liveTurns.map((turn) => ({ role: turn.role, content: turn.content }));
+		const historySummary = (await this.ctx.storage.get<StoredSummary>("summary"))?.text;
 
 		this.ctx.storage.sql.exec("INSERT INTO turns (role, content) VALUES ('user', ?)", userMessage);
-
-		const fetchImpl = testLlmFetch ?? fetch;
 
 		// F5 — "remind me Thursday 3pm to…" (PRD F5). A cheap, regex-gated pre-step: NOT a general
 		// tool-calling loop, just one narrow `completeJson` extraction wired into this one call
@@ -170,6 +267,7 @@ export class Conversation extends DurableObject<Env> {
 		const messages = buildMessages({
 			assistantName: opts.assistantName,
 			memoryBlock: opts.memoryBlock,
+			historySummary,
 			history,
 			userMessage,
 			dynamicContext,
