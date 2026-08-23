@@ -1,7 +1,7 @@
 /** HTTP handlers for F1 chat: the D1 conversation index and the per-conversation DO (PLAN step 5). */
 
-import { getMemoryBlock } from "../memory";
 import { providerFromEnv } from "../llm";
+import { getMemoryBlock } from "../memory";
 
 /** Matches `/api/conversations/:id/messages`, capturing `:id` only when it is a v4 UUID. */
 export const MESSAGES_PATH_RE =

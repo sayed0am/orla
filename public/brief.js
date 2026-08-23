@@ -2,6 +2,7 @@
 
 import { apiFetch } from "./api.js";
 import { renderMarkdown } from "./markdown.js";
+import { credentialToJSON, toCreationOptions } from "./webauthn.js";
 
 /** Converts a base64url-encoded VAPID public key into the Uint8Array pushManager.subscribe wants. */
 function base64UrlToUint8Array(base64Url) {
@@ -64,7 +65,7 @@ function isOverdue(dueDate) {
 	return dueDate < todayUtc();
 }
 
-export function mountBrief(root) {
+export function mountBrief(root, authStatus) {
 	const view = document.createElement("div");
 	view.className = "brief-view";
 	view.innerHTML = `
@@ -93,6 +94,18 @@ export function mountBrief(root) {
 	const pushBody = view.querySelector("#push-body");
 	const maintenanceBody = view.querySelector("#maintenance-body");
 	const memoryBody = view.querySelector("#memory-body");
+
+	// Passkeys card only exists in passkey auth mode — created here (rather than in the
+	// static template above) so it's simply absent from the DOM in access mode.
+	let passkeysBody;
+	if (authStatus?.mode === "passkey") {
+		const heading = document.createElement("h3");
+		heading.textContent = "Passkeys";
+		view.appendChild(heading);
+		passkeysBody = document.createElement("div");
+		passkeysBody.id = "passkeys-body";
+		view.appendChild(passkeysBody);
+	}
 
 	let destroyed = false;
 	let currentDate = todayUtc();
@@ -881,11 +894,216 @@ export function mountBrief(root) {
 		memoryBody.appendChild(memoryPreviewDetails());
 	}
 
+	// --- Passkeys (Phase 3 step 1) ---
+
+	function formatPasskeyWhen(iso) {
+		if (!iso) {
+			return "never";
+		}
+		try {
+			return new Date(iso).toLocaleString();
+		} catch {
+			return iso;
+		}
+	}
+
+	function passkeyRow(credential, onRemoved, showPasskeysError) {
+		const row = document.createElement("div");
+		row.className = "passkey-row";
+
+		const info = document.createElement("div");
+		info.className = "passkey-info";
+
+		const name = document.createElement("div");
+		name.className = "passkey-name";
+		name.textContent = credential.name || "Unnamed passkey";
+		info.appendChild(name);
+
+		const meta = document.createElement("div");
+		meta.className = "passkey-meta hint";
+		meta.textContent = `Added ${formatPasskeyWhen(credential.created_at)} · Last used ${formatPasskeyWhen(credential.last_used_at)}`;
+		info.appendChild(meta);
+
+		row.appendChild(info);
+
+		const removeButton = document.createElement("button");
+		removeButton.type = "button";
+		removeButton.textContent = "Remove";
+		removeButton.addEventListener("click", async () => {
+			removeButton.disabled = true;
+			try {
+				const res = await apiFetch(`/api/auth/credentials/${credential.id}`, {
+					method: "DELETE",
+				});
+				if (res.status === 409) {
+					showPasskeysError("You can't remove your last passkey.");
+					if (!destroyed) {
+						removeButton.disabled = false;
+					}
+					return;
+				}
+				if (!res.ok && res.status !== 204) {
+					throw new Error(`http ${res.status}`);
+				}
+				onRemoved();
+			} catch (err) {
+				console.error("brief: failed to remove passkey", err);
+				showPasskeysError("Couldn't remove that passkey.");
+				if (!destroyed) {
+					removeButton.disabled = false;
+				}
+			}
+		});
+		row.appendChild(removeButton);
+
+		return row;
+	}
+
+	function passkeyAddRow(errBox) {
+		const row = document.createElement("div");
+		row.className = "passkey-add-row";
+
+		const input = document.createElement("input");
+		input.type = "text";
+		input.placeholder = "Name this passkey";
+		input.value = navigator.userAgentData?.platform || "This device";
+		input.maxLength = 60;
+
+		const button = document.createElement("button");
+		button.type = "button";
+		button.className = "primary";
+		button.textContent = "Add another passkey";
+
+		async function submit() {
+			button.disabled = true;
+			errBox.hidden = true;
+			try {
+				const optionsRes = await apiFetch("/api/auth/register/options", { method: "POST" });
+				if (!optionsRes.ok) {
+					throw new Error(`http ${optionsRes.status}`);
+				}
+				const optionsJson = await optionsRes.json();
+				const credential = await navigator.credentials.create({
+					publicKey: toCreationOptions(optionsJson),
+				});
+				const verifyRes = await apiFetch("/api/auth/register/verify", {
+					method: "POST",
+					headers: { "content-type": "application/json" },
+					body: JSON.stringify({
+						response: credentialToJSON(credential),
+						name: input.value.trim() || "This device",
+					}),
+				});
+				if (!verifyRes.ok) {
+					throw new Error(`http ${verifyRes.status}`);
+				}
+				if (!destroyed) {
+					await loadPasskeys();
+				}
+			} catch (err) {
+				console.error("brief: failed to add passkey", err);
+				if (!destroyed) {
+					errBox.textContent =
+						err?.name === "NotAllowedError" ? "Cancelled." : "Couldn't add that passkey.";
+					errBox.hidden = false;
+					button.disabled = false;
+				}
+			}
+		}
+
+		button.addEventListener("click", submit);
+
+		row.appendChild(input);
+		row.appendChild(button);
+		return row;
+	}
+
+	async function signOutOfPasskeys(button) {
+		button.disabled = true;
+		try {
+			const res = await apiFetch("/api/auth/logout", { method: "POST" });
+			if (!res.ok && res.status !== 204) {
+				throw new Error(`http ${res.status}`);
+			}
+		} catch (err) {
+			console.error("brief: sign out failed", err);
+		} finally {
+			// Reload unconditionally: whether or not the request succeeded, the freshest
+			// source of truth for whether we're still signed in is a fresh /api/auth/status.
+			window.location.reload();
+		}
+	}
+
+	async function loadPasskeys() {
+		if (!passkeysBody) {
+			return;
+		}
+		passkeysBody.innerHTML = `<p class="hint">Loading…</p>`;
+
+		let res;
+		try {
+			res = await apiFetch("/api/auth/credentials");
+		} catch (err) {
+			console.error("brief: failed to load passkeys", err);
+			if (!destroyed) {
+				passkeysBody.innerHTML = `<p class="hint">Couldn't load passkeys.</p>`;
+			}
+			return;
+		}
+		if (destroyed) {
+			return;
+		}
+		if (!res.ok) {
+			passkeysBody.innerHTML = `<p class="hint">Couldn't load passkeys.</p>`;
+			return;
+		}
+
+		const data = await res.json();
+		const credentials = data.credentials ?? [];
+
+		passkeysBody.innerHTML = "";
+		const card = document.createElement("div");
+		card.className = "passkeys-card";
+
+		const errBox = document.createElement("p");
+		errBox.className = "passkeys-error hint";
+		errBox.hidden = true;
+
+		function showPasskeysError(message) {
+			errBox.textContent = message;
+			errBox.hidden = false;
+		}
+
+		if (credentials.length === 0) {
+			const p = document.createElement("p");
+			p.className = "hint";
+			p.textContent = "No passkeys yet.";
+			card.appendChild(p);
+		} else {
+			for (const credential of credentials) {
+				card.appendChild(passkeyRow(credential, loadPasskeys, showPasskeysError));
+			}
+		}
+
+		card.appendChild(passkeyAddRow(errBox));
+		card.appendChild(errBox);
+
+		const signOutButton = document.createElement("button");
+		signOutButton.type = "button";
+		signOutButton.className = "passkeys-signout";
+		signOutButton.textContent = "Sign out";
+		signOutButton.addEventListener("click", () => signOutOfPasskeys(signOutButton));
+		card.appendChild(signOutButton);
+
+		passkeysBody.appendChild(card);
+	}
+
 	loadBrief();
 	loadActionItems();
 	loadPushState();
 	loadMaintenance();
 	loadMemory();
+	loadPasskeys();
 
 	return function unmount() {
 		destroyed = true;

@@ -21,6 +21,8 @@ const SHELL_FILES = [
 	"/journal.js",
 	"/api.js",
 	"/outbox.js",
+	"/login.js",
+	"/webauthn.js",
 	"/icons/icon-192.png",
 	"/icons/icon-512.png",
 	"/icons/maskable-512.png",
