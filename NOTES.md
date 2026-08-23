@@ -6,11 +6,38 @@ _Last updated 2026-08-23. Phases 1–2 are live at orla.sayed0am.workers.dev._
 
 1. **Passkeys replace Cloudflare Access** — DONE 2026-08-23 (verified on-device; Access app to be deleted; `AUTH_MODE=passkey`).
    `AUTH_MODE` switch so Access stays usable until passkeys are verified on-device.
-2. **F8 one-line installer** — `npm create orla`: `wrangler login` → provision D1/DO/cron/secrets →
-   OpenRouter key → deploy → first-visit passkey registration. Blocked on 1.
+2. **F8 one-line installer** — DONE (code) 2026-08-23, not yet run against a live account.
+   `installer/` is a standalone zero-dependency npm package (`create-orla`, `bin/create-orla.mjs`)
+   that runs `npx wrangler@4.125.0` (pinned to match root `package.json`, checked for drift by
+   `test/installer.test.ts`) against a fresh `git clone` of this repo: preflight (Node/git/
+   `wrangler login`) → clone → prompts (assistant name, Worker name, OpenRouter key validated via
+   `GET /api/v1/auth/key`, VAPID subject) → `d1 create` + comment-preserving `wrangler.jsonc`
+   rewrite → three secrets piped via stdin (`OPENROUTER_API_KEY`, `VAPID_PRIVATE_KEY`,
+   `SESSION_SECRET`) → `npm ci` → `d1 migrations apply --remote` → `deploy` → optional ZDR
+   provider pin (`scripts/zdr-pin.mjs --json`) → done screen. `--dry-run` prints the full command
+   list with no wrangler/git/network calls (verified locally); `--from <step>` resumes after a
+   failure; `--yes` skips prompts. Tests: `npm run test:installer` (plain vitest, node
+   environment, `installer/vitest.config.mjs` — not the workers pool) cover output parsing (both
+   the current JSON-snippet and legacy TOML `d1 create` formats), the `wrangler.jsonc` regex
+   rewrite (run against a copy of the real root file, comments verified intact), deploy-URL
+   parsing, VAPID key shape, step-resume ordering, and the `--dry-run` command list, with wrangler
+   itself mocked via an injectable runner. Docs: `docs/INSTALL.md`; linked from README.
+   Still needed before calling this done for real: one live end-to-end run against a throwaway
+   Cloudflare account (not done here — no account writes were made producing this code), and the
+   name/domain/npm-publish checks in item 4 below (package is named `create-orla` but unpublished).
 3. **Memory decision revisit (§8)** — after a few weeks of real use; compare Option A against gaps.
 4. **Name / domain / npm checks** — `npm view orla`, `create-orla`, domains, trademark classes 9/42.
-5. **Docs** — README setup guide, prerequisites (Cloudflare 2FA, OpenRouter ZDR toggle).
+   Needed before `npm create orla` actually works for a stranger: `create-orla` isn't published yet.
+5. **Docs** — DONE 2026-08-23: `docs/INSTALL.md` (prerequisites, what's provisioned, costs,
+   updating, uninstalling, privacy model), linked from README.
+6. **Installer follow-ups** (not required for F8's exit criterion, deferred):
+   - Publish `create-orla` to npm (blocked on item 4's name check) and wire up `npm create orla`
+     to actually resolve to it — today it's runnable as `node installer/bin/create-orla.mjs`.
+   - Tag releases instead of always cloning `main` (installer already has `--ref`; just needs the
+     first tag once Phase 3 ships and a default other than `main` becomes appropriate).
+   - Custom domain option in the installer (currently only the `*.workers.dev` URL from `wrangler
+     deploy`; `wrangler deploy --domain` exists but needs a zone already on the account, which the
+     installer doesn't prompt for).
 
 ## Smaller loose ends
 

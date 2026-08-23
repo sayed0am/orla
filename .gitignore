@@ -5,3 +5,4 @@ dist/
 .env*
 worker-configuration.d.ts
 .DS_Store
+res.md

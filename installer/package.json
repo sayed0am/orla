@@ -1,0 +1,16 @@
+{
+	"name": "create-orla",
+	"version": "0.1.0",
+	"description": "One-line installer for Orla — provisions your own Cloudflare Worker, D1 database, and secrets, then deploys.",
+	"type": "module",
+	"bin": {
+		"create-orla": "./bin/create-orla.mjs"
+	},
+	"engines": {
+		"node": ">=20"
+	},
+	"files": [
+		"bin",
+		"src"
+	]
+}

@@ -11,12 +11,14 @@
 		"lint": "biome check .",
 		"format": "biome format --write .",
 		"test": "vitest run",
+		"test:installer": "vitest run -c installer/vitest.config.mjs",
 		"vapid": "node scripts/vapid.mjs",
 		"zdr-pin": "node scripts/zdr-pin.mjs"
 	},
 	"devDependencies": {
 		"@biomejs/biome": "2.5.10",
 		"@cloudflare/vitest-pool-workers": "0.9.14",
+		"@types/node": "24.9.2",
 		"typescript": "5.9.3",
 		"vitest": "3.2.7",
 		"wrangler": "4.125.0"

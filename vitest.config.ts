@@ -5,6 +5,18 @@ export default defineWorkersConfig(async () => {
 
 	return {
 		test: {
+			// test/installer.test.ts is a plain-Node vitest suite for the F8 installer (uses
+			// node:child_process, node:fs, etc., unavailable inside workerd) — it has its own config
+			// (installer/vitest.config.mjs, run via `npm run test:installer`) and must not be picked
+			// up here. Setting `exclude` replaces vitest's own default list, so it's repeated below.
+			exclude: [
+				"test/installer.test.ts",
+				"**/node_modules/**",
+				"**/dist/**",
+				"**/cypress/**",
+				"**/.{idea,git,cache,output,temp}/**",
+				"**/{karma,rollup,webpack,vite,vitest,jest,ava,babel,nyc,cypress,tsup,build}.config.*",
+			],
 			setupFiles: ["./test/apply-migrations.ts"],
 			poolOptions: {
 				workers: {
