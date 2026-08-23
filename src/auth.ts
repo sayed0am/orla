@@ -1,4 +1,12 @@
-/** Cloudflare Access JWT verification for `/api/*` routes (PRD §7 Security). */
+/**
+ * `requireAuth` gates every `/api/*` route (PRD §7 Security). It is mode-aware
+ * (`env.AUTH_MODE`): `"access"` (default, unchanged) verifies a Cloudflare Access JWT; `"passkey"`
+ * (Phase 3, docs/PLAN.md) verifies the `orla_session` cookie minted by `src/routes/auth.ts`. Both
+ * modes resolve to the same `AuthPrincipal` shape so route handlers never need to know which one
+ * is active.
+ */
+
+import { SESSION_COOKIE_NAME, verifySession } from "./session";
 
 export type AccessClaims = {
 	email: string;
@@ -6,6 +14,12 @@ export type AccessClaims = {
 	exp: number;
 	iat: number;
 	aud: string[];
+};
+
+/** What every auth mode resolves to — deliberately narrow; no route reads more than `sub`. */
+export type AuthPrincipal = {
+	sub: string;
+	via: "access" | "passkey";
 };
 
 export class AuthError extends Error {
@@ -221,8 +235,38 @@ function getCookie(request: Request, name: string): string | undefined {
 	return undefined;
 }
 
-/** Requires a valid Cloudflare Access JWT on `request`, returning claims or a 401/500 Response. */
-export async function requireAuth(request: Request, env: Env): Promise<AccessClaims | Response> {
+const MIN_SESSION_SECRET_LENGTH = 32;
+
+async function requireAuthPasskey(request: Request, env: Env): Promise<AuthPrincipal | Response> {
+	const secret = env.SESSION_SECRET;
+	if (!secret || secret.length < MIN_SESSION_SECRET_LENGTH) {
+		return Response.json({ error: "auth not configured" }, { status: 500 });
+	}
+
+	const token = getCookie(request, SESSION_COOKIE_NAME);
+	if (!token) {
+		return Response.json({ error: "unauthorized" }, { status: 401 });
+	}
+
+	const payload = await verifySession(secret, token);
+	if (!payload) {
+		return Response.json({ error: "unauthorized" }, { status: 401 });
+	}
+
+	// The credential the session was minted for may since have been deleted (e.g. revoked from
+	// another device) — a session surviving its credential would otherwise stay valid until it
+	// naturally expires, up to 30 days later.
+	const credentialRow = await env.ORLA_DB.prepare("SELECT 1 FROM credentials WHERE id = ?")
+		.bind(payload.cid)
+		.first();
+	if (!credentialRow) {
+		return Response.json({ error: "unauthorized" }, { status: 401 });
+	}
+
+	return { sub: payload.cid, via: "passkey" };
+}
+
+async function requireAuthAccess(request: Request, env: Env): Promise<AuthPrincipal | Response> {
 	const teamDomain = env.ACCESS_TEAM_DOMAIN;
 	const aud = env.ACCESS_AUD;
 	if (!teamDomain || !aud) {
@@ -236,8 +280,20 @@ export async function requireAuth(request: Request, env: Env): Promise<AccessCla
 	}
 
 	try {
-		return await verifyAccessJwt(token, { teamDomain, aud, fetchJwks: testJwksFetch });
+		const claims = await verifyAccessJwt(token, { teamDomain, aud, fetchJwks: testJwksFetch });
+		return { sub: claims.sub, via: "access" };
 	} catch {
 		return Response.json({ error: "unauthorized" }, { status: 401 });
 	}
+}
+
+/**
+ * Requires a valid principal on `request` per `env.AUTH_MODE` ("access", the default, or
+ * "passkey"), returning `AuthPrincipal` or a 401/500 Response.
+ */
+export async function requireAuth(request: Request, env: Env): Promise<AuthPrincipal | Response> {
+	if (env.AUTH_MODE === "passkey") {
+		return requireAuthPasskey(request, env);
+	}
+	return requireAuthAccess(request, env);
 }

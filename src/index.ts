@@ -2,6 +2,17 @@ import { requireAuth } from "./auth";
 import { runMorningBrief } from "./brief";
 import { insertRawNote, listRawNotes } from "./notes";
 import { runReorganization } from "./reorganize";
+import {
+	CREDENTIAL_PATH_RE,
+	handleAuthStatus,
+	handleDeleteCredential,
+	handleListCredentials,
+	handleLoginOptions,
+	handleLoginVerify,
+	handleLogout,
+	handleRegisterOptions,
+	handleRegisterVerify,
+} from "./routes/auth";
 import { handleBriefGet, handleBriefRun } from "./routes/brief";
 import {
 	handleCreateConversation,
@@ -145,6 +156,42 @@ export default {
 
 		if (url.pathname === "/api/health") {
 			return Response.json({ ok: true, assistant: env.ASSISTANT_NAME });
+		}
+
+		// Passkey auth routes (Phase 3, docs/PLAN.md) gate themselves — bootstrap and login must be
+		// reachable with no prior credential, so they're wired ahead of the blanket `/api/*` gate.
+		if (url.pathname === "/api/auth/status" && request.method === "GET") {
+			return handleAuthStatus(request, env);
+		}
+
+		if (url.pathname === "/api/auth/register/options" && request.method === "POST") {
+			return handleRegisterOptions(request, env);
+		}
+
+		if (url.pathname === "/api/auth/register/verify" && request.method === "POST") {
+			return handleRegisterVerify(request, env);
+		}
+
+		if (url.pathname === "/api/auth/login/options" && request.method === "POST") {
+			return handleLoginOptions(request, env);
+		}
+
+		if (url.pathname === "/api/auth/login/verify" && request.method === "POST") {
+			return handleLoginVerify(request, env);
+		}
+
+		if (url.pathname === "/api/auth/logout" && request.method === "POST") {
+			return handleLogout();
+		}
+
+		if (url.pathname === "/api/auth/credentials" && request.method === "GET") {
+			return handleListCredentials(request, env);
+		}
+
+		const credentialMatch = CREDENTIAL_PATH_RE.exec(url.pathname);
+		if (credentialMatch && request.method === "DELETE") {
+			const id = credentialMatch[1] as string;
+			return handleDeleteCredential(request, env, id);
 		}
 
 		if (url.pathname.startsWith("/api/")) {

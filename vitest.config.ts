@@ -28,6 +28,10 @@ export default defineWorkersConfig(async () => {
 							TEST_MIGRATIONS: migrations,
 							ACCESS_TEAM_DOMAIN: "test.cloudflareaccess.com",
 							ACCESS_AUD: "test-aud",
+							// Access mode is the default for the whole pool so existing Access tests are
+							// unaffected; passkey-mode tests build their own env override (see test/passkey.test.ts).
+							AUTH_MODE: "access",
+							SESSION_SECRET: "test-session-secret-at-least-32-characters-long",
 							// Pinned empty so tests never depend on deploy config; tests that need
 							// push keys generate and inject their own.
 							VAPID_PUBLIC_KEY: "",
