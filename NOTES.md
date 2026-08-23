@@ -4,7 +4,7 @@ _Last updated 2026-08-23. Phases 1–2 are live at orla.sayed0am.workers.dev._
 
 ## Phase 3 (in progress)
 
-1. **Passkeys replace Cloudflare Access** — WebAuthn in the Worker (`src/auth.ts` swap),
+1. **Passkeys replace Cloudflare Access** — DONE 2026-08-23 (verified on-device; Access app to be deleted; `AUTH_MODE=passkey`).
    `AUTH_MODE` switch so Access stays usable until passkeys are verified on-device.
 2. **F8 one-line installer** — `npm create orla`: `wrangler login` → provision D1/DO/cron/secrets →
    OpenRouter key → deploy → first-visit passkey registration. Blocked on 1.
