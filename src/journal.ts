@@ -75,7 +75,7 @@ type ActionItemRow = {
 	created_at: string;
 };
 
-function parseJsonArray(raw: string): string[] {
+export function parseJsonArray(raw: string): string[] {
 	try {
 		const value: unknown = JSON.parse(raw);
 		return Array.isArray(value) ? value.filter((v): v is string => typeof v === "string") : [];
@@ -376,12 +376,13 @@ export type ExportPayload = {
 	organized_notes: unknown[];
 	action_items: unknown[];
 	conversations: unknown[];
+	memory_facts: unknown[];
 };
 
 /**
  * Full-account export (PRD §7 Portability): everything, including private raw notes — raw notes
  * are the canonical source of truth and portability must not silently drop them. A single
- * `db.batch` runs the four selects together (single-user scale, so a stream isn't warranted).
+ * `db.batch` runs the five selects together (single-user scale, so a stream isn't warranted).
  */
 export async function exportAll(db: D1Database, now: Date = new Date()): Promise<ExportPayload> {
 	const results = await db.batch([
@@ -397,10 +398,13 @@ export async function exportAll(db: D1Database, now: Date = new Date()): Promise
 		db.prepare(
 			"SELECT id, title, created_at, updated_at FROM conversations ORDER BY created_at ASC",
 		),
+		db.prepare(
+			"SELECT id, text, status, source, source_note_id, created_at, updated_at FROM memory_facts ORDER BY created_at ASC",
+		),
 	]);
 
-	const [rawNotes, organizedNotes, actionItems, conversations] = results;
-	if (!rawNotes || !organizedNotes || !actionItems || !conversations) {
+	const [rawNotes, organizedNotes, actionItems, conversations, memoryFacts] = results;
+	if (!rawNotes || !organizedNotes || !actionItems || !conversations || !memoryFacts) {
 		throw new Error("exportAll: db.batch returned fewer results than statements");
 	}
 
@@ -410,5 +414,6 @@ export async function exportAll(db: D1Database, now: Date = new Date()): Promise
 		organized_notes: organizedNotes.results,
 		action_items: actionItems.results,
 		conversations: conversations.results,
+		memory_facts: memoryFacts.results,
 	};
 }

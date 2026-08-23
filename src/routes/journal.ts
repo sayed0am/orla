@@ -1,5 +1,8 @@
 /** HTTP handlers for F7 journal views: browse/search organized notes, action items, export. */
 
+import type { Turn } from "../conversation";
+import type { ExportConversation, ExportData, ExportTurn } from "../export-markdown";
+import { renderExportMarkdown } from "../export-markdown";
 import {
 	ACTION_ITEM_DUE_FILTERS,
 	ACTION_ITEM_STATUS_FILTERS,
@@ -7,9 +10,11 @@ import {
 	type ActionItemDueFilter,
 	type ActionItemStatus,
 	type ActionItemStatusFilter,
+	type ExportPayload,
 	exportAll,
 	listActionItems,
 	listJournalEntries,
+	parseJsonArray,
 	searchJournalEntries,
 	updateActionItemStatus,
 } from "../journal";
@@ -141,12 +146,153 @@ export async function handleActionItemUpdate(
 	return Response.json(updated, { status: 200 });
 }
 
-/** `GET /api/export` — full account export (PRD §7 Portability), including private raw notes. */
-export async function handleExport(env: Env): Promise<Response> {
+type ExportRawNoteRow = {
+	id: string;
+	body: string;
+	created_at: string;
+	private: number;
+	processed_at: string | null;
+};
+
+type ExportOrganizedNoteRow = {
+	id: string;
+	raw_note_id: string;
+	run_id: string;
+	type: string;
+	cleaned_text: string;
+	summary: string;
+	tags: string;
+	attendees: string;
+	decisions: string;
+	model: string;
+	created_at: string;
+};
+
+type ExportActionItemRow = {
+	id: string;
+	organized_note_id: string;
+	text: string;
+	due_date: string | null;
+	status: string;
+	created_at: string;
+};
+
+type ExportConversationRow = {
+	id: string;
+	title: string;
+	created_at: string;
+	updated_at: string;
+};
+
+type ExportMemoryFactRow = {
+	id: string;
+	text: string;
+	status: string;
+	source: string;
+	source_note_id: string | null;
+	created_at: string;
+	updated_at: string;
+};
+
+/**
+ * Builds the Markdown-renderer's input from `exportAll`'s JSON payload: joins organized notes to
+ * their raw note's `created_at` (for day-grouping — `exportAll`'s own JSON shape stays unjoined so
+ * the default JSON export's fields don't change), and fetches each conversation's turns from its
+ * Durable Object (the data layer in `../journal` deliberately doesn't know about DOs).
+ */
+async function buildExportMarkdownData(env: Env, payload: ExportPayload): Promise<ExportData> {
+	const rawNotes = payload.raw_notes as ExportRawNoteRow[];
+	const organizedNotes = payload.organized_notes as ExportOrganizedNoteRow[];
+	const actionItemRows = payload.action_items as ExportActionItemRow[];
+	const conversationRows = payload.conversations as ExportConversationRow[];
+	const memoryFactRows = payload.memory_facts as ExportMemoryFactRow[];
+
+	const rawNoteById = new Map(rawNotes.map((row) => [row.id, row]));
+	const organizedNoteById = new Map(organizedNotes.map((row) => [row.id, row]));
+
+	const journal = organizedNotes.map((row) => {
+		const rawNote = rawNoteById.get(row.raw_note_id);
+		return {
+			type: row.type,
+			summary: row.summary,
+			cleaned_text: row.cleaned_text,
+			tags: parseJsonArray(row.tags),
+			attendees: parseJsonArray(row.attendees),
+			decisions: parseJsonArray(row.decisions),
+			captured_at: rawNote?.created_at ?? row.created_at,
+		};
+	});
+
+	const actionItems = actionItemRows.map((row) => ({
+		text: row.text,
+		due_date: row.due_date,
+		status: row.status,
+		summary: organizedNoteById.get(row.organized_note_id)?.summary ?? "",
+	}));
+
+	const conversations: ExportConversation[] = await Promise.all(
+		conversationRows.map(async (row): Promise<ExportConversation> => {
+			const stub = env.CONVERSATION.get(env.CONVERSATION.idFromName(row.id));
+			// A conversation's DO can be unreachable (e.g. invalidated by a concurrent deploy) even
+			// though its D1 index row exists — one bad stub shouldn't fail the whole export, so it's
+			// listed with `unavailable: true` instead of its turns.
+			try {
+				const turns: Turn[] = await stub.listTurns();
+				return {
+					id: row.id,
+					title: row.title,
+					turns: turns.map((turn): ExportTurn => ({ role: turn.role, content: turn.content })),
+				};
+			} catch {
+				return { id: row.id, title: row.title, turns: [], unavailable: true };
+			}
+		}),
+	);
+
+	return {
+		memory_facts: memoryFactRows.map((row) => ({
+			text: row.text,
+			status: row.status as "proposed" | "active" | "archived",
+		})),
+		action_items: actionItems,
+		journal,
+		raw_notes: rawNotes.map((row) => ({
+			created_at: row.created_at,
+			private: row.private === 1,
+			body: row.body,
+		})),
+		conversations,
+	};
+}
+
+/**
+ * `GET /api/export?format=json|markdown` — full account export (PRD §7 Portability), including
+ * private raw notes. `format` defaults to `json` (unchanged behaviour); `request` is optional so
+ * existing callers that only pass `env` keep working. Once `src/index.ts` is wired to forward the
+ * request, `?format=markdown` returns one Markdown document instead (see `renderExportMarkdown`).
+ */
+export async function handleExport(env: Env, request?: Request): Promise<Response> {
 	const now = new Date();
 	const payload = await exportAll(env.ORLA_DB, now);
-	const filename = `orla-export-${now.toISOString().slice(0, 10)}.json`;
+	const dateStamp = now.toISOString().slice(0, 10);
 
+	const format = request ? new URL(request.url).searchParams.get("format") : null;
+
+	if (format === "markdown") {
+		const data = await buildExportMarkdownData(env, payload);
+		const body = renderExportMarkdown(data, now.toISOString());
+		const filename = `orla-export-${dateStamp}.md`;
+
+		return new Response(body, {
+			status: 200,
+			headers: {
+				"content-type": "text/markdown; charset=utf-8",
+				"content-disposition": `attachment; filename="${filename}"`,
+			},
+		});
+	}
+
+	const filename = `orla-export-${dateStamp}.json`;
 	return new Response(JSON.stringify(payload), {
 		status: 200,
 		headers: {

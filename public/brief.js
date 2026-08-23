@@ -78,6 +78,8 @@ export function mountBrief(root) {
 		<div id="action-items-body"></div>
 		<h3>Notifications</h3>
 		<div id="push-body"></div>
+		<h3>Maintenance</h3>
+		<div id="maintenance-body"></div>
 		<h3>Memory</h3>
 		<div id="memory-body"></div>
 	`;
@@ -89,6 +91,7 @@ export function mountBrief(root) {
 	const briefBody = view.querySelector("#brief-body");
 	const actionItemsBody = view.querySelector("#action-items-body");
 	const pushBody = view.querySelector("#push-body");
+	const maintenanceBody = view.querySelector("#maintenance-body");
 	const memoryBody = view.querySelector("#memory-body");
 
 	let destroyed = false;
@@ -485,6 +488,88 @@ export function mountBrief(root) {
 		}
 	}
 
+	// --- Maintenance (F3 nightly reorganization, run on demand) ---
+
+	function formatRunWhen(run) {
+		const at = run.finished_at ?? run.started_at;
+		try {
+			return new Date(at).toLocaleString();
+		} catch {
+			return at;
+		}
+	}
+
+	function formatRunResult(run) {
+		if (run.status === "ok") {
+			return `ok: ${run.notes_ok} notes organized`;
+		}
+		if (run.status === "partial") {
+			return `partial: ${run.notes_ok} ok, ${run.notes_failed} quarantined`;
+		}
+		if (run.status === "failed") {
+			return `failed: ${run.error ?? "unknown error"}`;
+		}
+		return run.status;
+	}
+
+	async function loadMaintenance() {
+		maintenanceBody.innerHTML = `<p class="hint">Loading…</p>`;
+
+		let lastRun;
+		try {
+			const res = await apiFetch("/api/reorganize/runs?limit=1");
+			if (!res.ok) {
+				throw new Error(`http ${res.status}`);
+			}
+			const data = await res.json();
+			lastRun = (data.runs ?? [])[0];
+		} catch (err) {
+			console.error("brief: failed to load reorganization runs", err);
+			if (!destroyed) {
+				maintenanceBody.innerHTML = `<p class="hint">Couldn't load reorganization status.</p>`;
+			}
+			return;
+		}
+		if (destroyed) {
+			return;
+		}
+
+		maintenanceBody.innerHTML = "";
+		const card = document.createElement("div");
+		card.className = "maintenance-card";
+
+		const lastRunLine = document.createElement("p");
+		lastRunLine.className = "maintenance-last-run";
+		lastRunLine.textContent = lastRun
+			? `Last run: ${formatRunWhen(lastRun)} — ${formatRunResult(lastRun)}`
+			: "No reorganization runs yet.";
+		card.appendChild(lastRunLine);
+
+		const runButton = document.createElement("button");
+		runButton.type = "button";
+		runButton.className = "primary";
+		runButton.textContent = "Organize notes now";
+		runButton.addEventListener("click", async () => {
+			runButton.disabled = true;
+			runButton.textContent = "Organizing…";
+			try {
+				const res = await apiFetch("/api/reorganize/run", { method: "POST" });
+				if (!res.ok) {
+					throw new Error(`http ${res.status}`);
+				}
+			} catch (err) {
+				console.error("brief: failed to run reorganization", err);
+			} finally {
+				if (!destroyed) {
+					await loadMaintenance();
+				}
+			}
+		});
+		card.appendChild(runButton);
+
+		maintenanceBody.appendChild(card);
+	}
+
 	// --- Memory (PRD §8 Option A) ---
 
 	function memoryProposedRow(fact) {
@@ -799,6 +884,7 @@ export function mountBrief(root) {
 	loadBrief();
 	loadActionItems();
 	loadPushState();
+	loadMaintenance();
 	loadMemory();
 
 	return function unmount() {

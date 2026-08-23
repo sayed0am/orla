@@ -68,7 +68,11 @@ export function mountJournal(root) {
 			</div>
 			<div id="journal-list"></div>
 			<button type="button" class="load-more" id="journal-load-more" hidden>Load more</button>
-			<p class="hint journal-export"><a href="/api/export">Export everything</a></p>
+			<p class="hint journal-export">
+				<a href="/api/export">Export JSON</a>
+				·
+				<a href="/api/export?format=markdown">Export Markdown</a>
+			</p>
 		</div>
 		<div id="journal-raw" hidden></div>
 	`;

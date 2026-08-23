@@ -8,6 +8,8 @@
 import { env, SELF } from "cloudflare:test";
 import { beforeAll, describe, expect, it } from "vitest";
 import { setJwksFetchForTests } from "../src/auth";
+import type { ExportData } from "../src/export-markdown";
+import { renderExportMarkdown } from "../src/export-markdown";
 import type { ActionItemStatus, ActionItemWithContext, JournalEntry } from "../src/journal";
 import {
 	handleActionItems,
@@ -642,6 +644,170 @@ describe("handleExport", () => {
 		const found = body.raw_notes.find((n) => n.id === rawId);
 		expect(found).toBeDefined();
 		expect(found?.body).toBe(`private export note ${marker}`);
+	});
+
+	it("includes memory_facts", async () => {
+		const marker = crypto.randomUUID();
+		const factId = crypto.randomUUID();
+		// Status 'archived' (not 'active'): an active fact would enter every later chat-prefix
+		// test's rendered memory block for the rest of this shared-storage run (storage persists
+		// across the whole vitest run — see the file header comment). The try/finally below still
+		// deletes it, belt-and-braces, since this table isn't scoped per-test either way.
+		await env.ORLA_DB.prepare(
+			"INSERT INTO memory_facts (id, text, status, source) VALUES (?, ?, 'archived', 'user')",
+		)
+			.bind(factId, `memory export fact ${marker}`)
+			.run();
+
+		try {
+			const res = await handleExport(env);
+			expect(res.status).toBe(200);
+
+			const body = (await res.json()) as { memory_facts: { id: string; text: string }[] };
+			expect(Array.isArray(body.memory_facts)).toBe(true);
+			const found = body.memory_facts.find((f) => f.id === factId);
+			expect(found).toBeDefined();
+			expect(found?.text).toBe(`memory export fact ${marker}`);
+		} finally {
+			await env.ORLA_DB.prepare("DELETE FROM memory_facts WHERE id = ?").bind(factId).run();
+		}
+	});
+});
+
+describe("renderExportMarkdown", () => {
+	it("blockquotes a conversation turn so an internal '### ' line isn't mistaken for a heading", () => {
+		const marker = crypto.randomUUID();
+		const trickyContent = `intro ${marker}\n### fake heading ${marker}\nend ${marker}`;
+
+		const data: ExportData = {
+			memory_facts: [],
+			action_items: [],
+			journal: [],
+			raw_notes: [],
+			conversations: [
+				{
+					id: "convo-1",
+					title: `conversation ${marker}`,
+					turns: [{ role: "assistant", content: trickyContent }],
+				},
+			],
+		};
+
+		const text = renderExportMarkdown(data, "2024-01-01T00:00:00.000Z");
+
+		expect(text).toContain(`> ### fake heading ${marker}`);
+		const unquotedHeading = new RegExp(`^### fake heading ${marker}`, "m");
+		expect(text).not.toMatch(unquotedHeading);
+	});
+
+	it("renders an unavailable conversation with a placeholder instead of its (missing) turns", () => {
+		const marker = crypto.randomUUID();
+
+		const data: ExportData = {
+			memory_facts: [],
+			action_items: [],
+			journal: [],
+			raw_notes: [],
+			conversations: [
+				{
+					id: "convo-unavailable",
+					title: `conversation ${marker}`,
+					turns: [{ role: "user", content: `should not appear ${marker}` }],
+					unavailable: true,
+				},
+			],
+		};
+
+		const text = renderExportMarkdown(data, "2024-01-01T00:00:00.000Z");
+
+		expect(text).toContain(`### conversation ${marker}`);
+		expect(text).toContain("_(turns unavailable)_");
+		expect(text).not.toContain(`should not appear ${marker}`);
+	});
+});
+
+describe("handleExport (format=markdown)", () => {
+	function markdownRequest(): Request {
+		return new Request("http://x/api/export?format=markdown");
+	}
+
+	it("returns a Markdown document with the expected section headings and filename", async () => {
+		const res = await handleExport(env, markdownRequest());
+		expect(res.status).toBe(200);
+		expect(res.headers.get("content-type")).toBe("text/markdown; charset=utf-8");
+
+		const disposition = res.headers.get("content-disposition");
+		expect(disposition).toContain("attachment");
+		expect(disposition).toMatch(/filename="orla-export-\d{4}-\d{2}-\d{2}\.md"/);
+
+		const text = await res.text();
+		expect(text).toMatch(/^# Orla export — /);
+		expect(text).toContain("## Memory facts (active)");
+		expect(text).toContain("## Action items (open)");
+		expect(text).toContain("## Journal");
+		expect(text).toContain("## Raw notes");
+		expect(text).toContain("## Conversations");
+	});
+
+	it("still returns the default JSON export when format is omitted", async () => {
+		const res = await handleExport(env, new Request("http://x/api/export"));
+		expect(res.status).toBe(200);
+		expect(res.headers.get("content-type")).toBe("application/json");
+	});
+
+	it("includes a private raw note's body verbatim under its captured day", async () => {
+		const marker = crypto.randomUUID();
+		const rawId = crypto.randomUUID();
+		await env.ORLA_DB.prepare("INSERT INTO raw_notes (id, body, private) VALUES (?, ?, 1)")
+			.bind(rawId, `private markdown note ${marker}`)
+			.run();
+
+		const res = await handleExport(env, markdownRequest());
+		const text = await res.text();
+
+		expect(text).toContain("**raw (private)**");
+		expect(text).toContain(`private markdown note ${marker}`);
+	});
+
+	it("blockquotes a cleaned_text body so an internal '### ' line isn't mistaken for a heading", async () => {
+		const marker = crypto.randomUUID();
+		const trickyBody = `intro line ${marker}\n### fake heading ${marker}\nend line ${marker}`;
+		await insertOrganizedNote({ cleanedText: trickyBody });
+
+		const res = await handleExport(env, markdownRequest());
+		const text = await res.text();
+
+		// The tricky line is present, but only ever as a quoted line...
+		expect(text).toContain(`> ### fake heading ${marker}`);
+		// ...never as an actual (unquoted) heading.
+		const unquotedHeading = new RegExp(`^### fake heading ${marker}`, "m");
+		expect(text).not.toMatch(unquotedHeading);
+	});
+
+	it("renders action items as GitHub-style checkboxes: open as [ ], done as [x]", async () => {
+		const marker = crypto.randomUUID();
+		const { organizedId } = await insertOrganizedNote({ cleanedText: `parent note ${marker}` });
+		const openText = `open item ${marker}`;
+		const doneText = `done item ${marker}`;
+		await insertActionItem({ organizedNoteId: organizedId, text: openText, dueDate: null });
+		await insertActionItem({
+			organizedNoteId: organizedId,
+			text: doneText,
+			dueDate: "2024-01-01",
+			status: "done",
+		});
+
+		const res = await handleExport(env, markdownRequest());
+		const text = await res.text();
+
+		expect(text).toContain(`- [ ] ${openText}`);
+		expect(text).toContain(`- [x] ${doneText} — due 2024-01-01`);
+	});
+
+	it("renders the Conversations section (turn-level content is exercised via the DO directly, not here)", async () => {
+		const res = await handleExport(env, markdownRequest());
+		const text = await res.text();
+		expect(text).toContain("## Conversations");
 	});
 });
 

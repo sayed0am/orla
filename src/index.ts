@@ -213,7 +213,7 @@ export default {
 		}
 
 		if (url.pathname === "/api/export" && request.method === "GET") {
-			return handleExport(env);
+			return handleExport(env, request);
 		}
 
 		if (url.pathname === "/api/memory/preview" && request.method === "GET") {

@@ -710,6 +710,20 @@ input[type="text"] {
 	margin-top: 0.5rem;
 }
 
+/* Maintenance card (on-demand reorganization) */
+.maintenance-card {
+	background: var(--surface);
+	border: 1px solid var(--border);
+	border-radius: 10px;
+	padding: 1rem;
+}
+
+.maintenance-last-run {
+	color: var(--muted);
+	font-size: 0.9rem;
+	margin: 0 0 0.6rem;
+}
+
 /* Memory (PRD §8 Option A) */
 .memory-subheading {
 	font-weight: 600;

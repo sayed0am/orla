@@ -73,3 +73,6 @@ starts only after Phase 1 is in daily use.
 
 Deploy checklist after pulling: `npm run vapid` → public key into `wrangler.jsonc`, private via
 `wrangler secret put VAPID_PRIVATE_KEY`; `wrangler d1 migrations apply orla --remote`; `wrangler deploy`.
+
+Loose ends closed 2026-08-23: history compaction (§5), Markdown export (§7), "Organize notes now"
+button. Still open: ZDR provider-pinning script (§5), manifest screenshots, AI Gateway (optional).
