@@ -54,7 +54,7 @@
 		"ACCESS_AUD": "cfaf7c0aabbc2d52329469ee895d58c7cb753c4d450ff0f6c054c16cb15904f2",
 		// Auth end state is passkeys (docs/PLAN.md); flipped to "passkey" only after on-device
 		// verification. "access" keeps the current Cloudflare Access gate unchanged.
-		"AUTH_MODE": "access",
+		"AUTH_MODE": "passkey",
 		// AI Gateway URL is substituted per-deployment later.
 		"OPENROUTER_BASE_URL": "https://openrouter.ai/api/v1",
 		// Optional provider slug from `npm run zdr-pin`; empty = OpenRouter picks any ZDR endpoint.
