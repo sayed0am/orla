@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { completeJson, type LlmConfig, LlmError, streamChat } from "../src/llm";
+import { completeJson, type LlmConfig, LlmError, providerFromEnv, streamChat } from "../src/llm";
 import type { ChatMessage } from "../src/prompt";
 
 const cfg: LlmConfig = {
@@ -134,6 +134,25 @@ describe("streamChat", () => {
 
 		const headers = new Headers(captured[0]?.init.headers);
 		expect(headers.get("Authorization")).toBe("Bearer test-key");
+	});
+
+	it("pins provider.order and disables fallbacks when cfg.provider is set", async () => {
+		const stream = sseStream("data: [DONE]\n\n", []);
+		const response = new Response(stream, { status: 200 });
+		const captured: CapturedRequest[] = [];
+
+		const events = [];
+		for await (const event of streamChat(
+			messages,
+			{ ...cfg, provider: "deepinfra" },
+			fakeFetch(response, captured),
+		)) {
+			events.push(event);
+		}
+
+		expect(events).toHaveLength(0);
+		const body = parsedBody(captured);
+		expect(body.provider).toEqual({ zdr: true, order: ["deepinfra"], allow_fallbacks: false });
 	});
 
 	it("ignores SSE comment/keepalive lines", async () => {
@@ -271,5 +290,33 @@ describe("completeJson", () => {
 		await expect(completeJson(messages, cfg, fakeFetch(response, captured))).rejects.toBeInstanceOf(
 			LlmError,
 		);
+	});
+
+	it("pins provider.order and disables fallbacks when cfg.provider is set", async () => {
+		const payload = {
+			choices: [{ message: { content: JSON.stringify({ foo: 1 }) } }],
+			usage: {},
+		};
+		const response = new Response(JSON.stringify(payload), { status: 200 });
+		const captured: CapturedRequest[] = [];
+
+		await completeJson(messages, { ...cfg, provider: "deepinfra" }, fakeFetch(response, captured));
+
+		const body = parsedBody(captured);
+		expect(body.provider).toEqual({ zdr: true, order: ["deepinfra"], allow_fallbacks: false });
+	});
+});
+
+describe("providerFromEnv", () => {
+	it("returns the configured provider slug", () => {
+		expect(providerFromEnv({ LLM_PROVIDER: "deepinfra" })).toBe("deepinfra");
+	});
+
+	it("returns undefined when LLM_PROVIDER is unset", () => {
+		expect(providerFromEnv({})).toBeUndefined();
+	});
+
+	it("treats an empty string as unset", () => {
+		expect(providerFromEnv({ LLM_PROVIDER: "" })).toBeUndefined();
 	});
 });

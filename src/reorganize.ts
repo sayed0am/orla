@@ -6,7 +6,7 @@
  */
 
 import { logLlmCall } from "./cost";
-import { completeJson, LlmError, type Usage } from "./llm";
+import { completeJson, LlmError, providerFromEnv, type Usage } from "./llm";
 import type { ChatMessage, ContentPart } from "./prompt";
 
 export type NoteType = "journal" | "meeting" | "task" | "idea" | "reference";
@@ -391,7 +391,7 @@ async function processBatch(
 	db: D1Database,
 	runId: string,
 	model: string,
-	llmCfg: { apiKey: string; baseUrl: string },
+	llmCfg: { apiKey: string; baseUrl: string; provider?: string },
 	batch: RawNoteRow[],
 	fetchImpl: typeof fetch,
 	now: Date,
@@ -412,6 +412,7 @@ async function processBatch(
 			messages,
 			{
 				apiKey: llmCfg.apiKey,
+				provider: llmCfg.provider,
 				model,
 				baseUrl: llmCfg.baseUrl,
 				sessionId: runId,
@@ -593,7 +594,11 @@ export async function runReorganization(
 				db,
 				runId,
 				model,
-				{ apiKey: env.OPENROUTER_API_KEY, baseUrl: env.OPENROUTER_BASE_URL },
+				{
+					apiKey: env.OPENROUTER_API_KEY,
+					baseUrl: env.OPENROUTER_BASE_URL,
+					provider: providerFromEnv(env),
+				},
 				batch,
 				fetchImpl,
 				now,

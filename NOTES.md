@@ -16,8 +16,6 @@ _Last updated 2026-08-23. Phases 1–2 are live at orla.sayed0am.workers.dev._
 
 ## Smaller loose ends
 
-- **ZDR provider-pinning script (§5)** — pick the cheapest ZDR endpoint reporting
-  `supports_implicit_caching` from `GET /api/v1/endpoints/zdr`; write the provider into config.
 - **Manifest `screenshots`** — upgrades Android Chrome's install prompt to the rich dialog.
 - **AI Gateway** — optional observability proxy; set `OPENROUTER_BASE_URL` to the gateway URL.
 - **Brief narrative (LLM)** — the brief is a deterministic template today; an LLM narrative is optional.
@@ -25,6 +23,14 @@ _Last updated 2026-08-23. Phases 1–2 are live at orla.sayed0am.workers.dev._
 - **Search includes raw notes?** — FTS currently covers organized notes only.
 - **Journal: mark a raw note private after capture** — no edit path yet (raw notes are immutable by
   design; a separate `private` toggle would need a decision).
+
+## Done
+
+- **ZDR provider-pinning script (§5)** — `scripts/zdr-pin.mjs` ranks a model's `GET
+  /api/v1/endpoints/zdr` endpoints by blended prompt/completion price, preferring ones that report
+  `supports_implicit_caching`, and prints the `LLM_PROVIDER` value to add to `wrangler.jsonc`.
+  `src/llm.ts`'s `LlmConfig.provider` pins that slug into the chat request's `provider.order` with
+  `allow_fallbacks: false`.
 
 ## Known constraints
 

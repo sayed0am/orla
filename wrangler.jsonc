@@ -52,11 +52,18 @@
 		"LLM_MODEL_BATCH": "deepseek/deepseek-v4-flash-0731",
 		"ACCESS_TEAM_DOMAIN": "twilight-hill-05c7.cloudflareaccess.com",
 		"ACCESS_AUD": "cfaf7c0aabbc2d52329469ee895d58c7cb753c4d450ff0f6c054c16cb15904f2",
+		// Auth end state is passkeys (docs/PLAN.md); flipped to "passkey" only after on-device
+		// verification. "access" keeps the current Cloudflare Access gate unchanged.
+		"AUTH_MODE": "access",
 		// AI Gateway URL is substituted per-deployment later.
 		"OPENROUTER_BASE_URL": "https://openrouter.ai/api/v1",
+		// Optional provider slug from `npm run zdr-pin`; empty = OpenRouter picks any ZDR endpoint.
+		"LLM_PROVIDER": "",
 		// Web Push (F4): public key is safe to ship as a var; generate both with `npm run vapid`.
 		"VAPID_PUBLIC_KEY": "BFiTtECugVbKd2TEDE5gvJEb8FLIzijlbXizhMhDMUvGeneIejPYTtL6MhYidXFwZBRpVxAWs-pMl4rset_wfLw",
 		"VAPID_SUBJECT": "mailto:sayed0am@gmail.com"
 	}
-	// Secrets (wrangler secret put): OPENROUTER_API_KEY, VAPID_PRIVATE_KEY
+	// Secrets (wrangler secret put): OPENROUTER_API_KEY, VAPID_PRIVATE_KEY, SESSION_SECRET
+	// (SESSION_SECRET: >= 32 chars, signs the passkey session cookie — required once AUTH_MODE
+	// is "passkey"; requireAuth fails closed with 500 if it is missing or too short.)
 }

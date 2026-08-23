@@ -14,7 +14,21 @@ export type LlmConfig = {
 	baseUrl: string;
 	sessionId: string;
 	jobType: "chat" | "reorganize" | "brief";
+	/**
+	 * Pinned OpenRouter provider slug (PRD §5, `scripts/zdr-pin.mjs`). When set, the request
+	 * restricts routing to this provider with fallbacks disabled; when unset, ZDR-only routing is
+	 * still enforced but OpenRouter picks among all ZDR endpoints itself.
+	 */
+	provider?: string;
 };
+
+/**
+ * Reads `LLM_PROVIDER` off the Worker env, treating an unset or empty value as "no pin" so callers
+ * can pass the result straight through to `LlmConfig.provider` without their own env plumbing.
+ */
+export function providerFromEnv(env: { LLM_PROVIDER?: string }): string | undefined {
+	return env.LLM_PROVIDER === "" ? undefined : env.LLM_PROVIDER;
+}
 
 export type Usage = {
 	prompt_tokens: number;
@@ -65,7 +79,9 @@ function requestBody(
 		stream,
 		session_id: cfg.sessionId,
 		usage: { include: true },
-		provider: { zdr: true },
+		provider: cfg.provider
+			? { zdr: true, order: [cfg.provider], allow_fallbacks: false }
+			: { zdr: true },
 	};
 }
 

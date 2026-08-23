@@ -43,6 +43,7 @@ export type SendOpts = {
 	baseUrl: string;
 	/** Minutes to add to UTC to get the user's local time, for F5 reminder-time resolution. */
 	tzOffsetMinutes?: number;
+	provider?: string;
 };
 
 export type SendResult =
@@ -169,6 +170,7 @@ export class Conversation extends DurableObject<Env> {
 						compactionMessages,
 						{
 							apiKey: opts.apiKey,
+							provider: opts.provider,
 							model: opts.model,
 							baseUrl: opts.baseUrl,
 							sessionId,
@@ -223,6 +225,7 @@ export class Conversation extends DurableObject<Env> {
 					buildReminderDetectionMessages(userMessage, now, opts.tzOffsetMinutes ?? 0),
 					{
 						apiKey: opts.apiKey,
+						provider: opts.provider,
 						model: opts.model,
 						baseUrl: opts.baseUrl,
 						sessionId,
@@ -289,6 +292,7 @@ export class Conversation extends DurableObject<Env> {
 					messages,
 					{
 						apiKey: opts.apiKey,
+						provider: opts.provider,
 						model: opts.model,
 						baseUrl: opts.baseUrl,
 						sessionId,
