@@ -31,6 +31,7 @@ _Last updated 2026-08-23. Phases 1–2 are live at orla.sayed0am.workers.dev._
   built here; those still need their own modules once scoped.
 - **Manifest `screenshots`** — upgrades Android Chrome's install prompt to the rich dialog.
 - **AI Gateway** — optional observability proxy; set `OPENROUTER_BASE_URL` to the gateway URL.
+- **ZDR provider pin** — decided 2026-08-23 to leave `LLM_PROVIDER` empty (OpenRouter routes among ZDR endpoints); revisit when an implicit-caching ZDR endpoint appears for the model.
 - **Brief narrative (LLM)** — the brief is a deterministic template today; an LLM narrative is optional.
 - **Reminder UI** — list/cancel reminders in the PWA (API exists: `/api/reminders`).
 - **Search includes raw notes?** — FTS currently covers organized notes only.
