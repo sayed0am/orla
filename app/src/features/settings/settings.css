@@ -1,0 +1,254 @@
+/* Settings screen: Notifications, Maintenance, Memory, Passkeys, MCP servers, Costs. Scoped
+   classes only — components.css is untouched. */
+
+.settings-sections {
+	display: flex;
+	flex-direction: column;
+	gap: var(--s-4);
+}
+
+.settings-subheading {
+	font-size: var(--fs-xs);
+	font-weight: 600;
+	color: var(--ink-2);
+	text-transform: uppercase;
+	letter-spacing: 0.04em;
+	margin: var(--s-2) 0 0;
+}
+
+.settings-actions-row {
+	display: flex;
+	gap: var(--s-2);
+	flex-wrap: wrap;
+}
+
+.mcp-error {
+	color: var(--danger);
+}
+
+/* Maintenance */
+.maintenance-last-run {
+	margin: 0;
+}
+
+/* Memory */
+.memory-row {
+	display: flex;
+	align-items: center;
+	justify-content: space-between;
+	gap: var(--s-3);
+	min-height: var(--tap);
+	padding: var(--s-2) 0;
+	border-bottom: 1px solid var(--border);
+}
+
+.memory-row:last-of-type {
+	border-bottom: none;
+}
+
+.memory-text {
+	flex: 1;
+	min-width: 0;
+	text-align: left;
+	background: none;
+	border: none;
+	font: inherit;
+	color: var(--ink);
+	padding: 0;
+}
+
+.memory-text-editable {
+	cursor: pointer;
+}
+
+.memory-edit-input {
+	flex: 1;
+}
+
+.memory-actions {
+	display: flex;
+	gap: var(--s-2);
+	flex-shrink: 0;
+}
+
+.memory-add-row {
+	display: flex;
+	gap: var(--s-2);
+	align-items: center;
+	margin-top: var(--s-2);
+}
+
+.memory-add-row .field {
+	flex: 1;
+}
+
+.memory-preview {
+	margin-top: var(--s-2);
+}
+
+.memory-preview summary {
+	cursor: pointer;
+	color: var(--ink-2);
+	font-size: var(--fs-sm);
+	min-height: var(--tap);
+	display: flex;
+	align-items: center;
+}
+
+.memory-preview-body {
+	margin-top: var(--s-2);
+}
+
+.memory-preview-block {
+	white-space: pre-wrap;
+	word-break: break-word;
+	background: var(--bg);
+	border: 1px solid var(--border);
+	border-radius: var(--r-sm);
+	padding: var(--s-3);
+	font-family: var(--font-mono);
+	font-size: var(--fs-xs);
+	margin: 0 0 var(--s-2);
+}
+
+/* MCP servers */
+.mcp-server-row {
+	display: flex;
+	align-items: center;
+	justify-content: space-between;
+	gap: var(--s-3);
+	padding: var(--s-3) 0;
+	border-bottom: 1px solid var(--border);
+	flex-wrap: wrap;
+}
+
+.mcp-server-row:last-of-type {
+	border-bottom: none;
+}
+
+.mcp-server-info {
+	display: flex;
+	flex-direction: column;
+	gap: 2px;
+	min-width: 0;
+}
+
+.mcp-server-name {
+	display: flex;
+	align-items: center;
+	gap: var(--s-2);
+	font-weight: 600;
+	min-height: var(--tap);
+}
+
+.mcp-server-meta {
+	margin: 0;
+}
+
+.mcp-server-actions {
+	display: flex;
+	gap: var(--s-2);
+	flex-wrap: wrap;
+}
+
+.mcp-add-row {
+	display: flex;
+	flex-direction: column;
+	gap: var(--s-2);
+	margin-top: var(--s-3);
+}
+
+.mcp-disclosure {
+	margin: 0;
+}
+
+/* Passkeys */
+.passkey-row {
+	display: flex;
+	align-items: center;
+	justify-content: space-between;
+	gap: var(--s-3);
+	padding: var(--s-3) 0;
+	border-bottom: 1px solid var(--border);
+}
+
+.passkey-row:last-of-type {
+	border-bottom: none;
+}
+
+.passkey-info {
+	display: flex;
+	flex-direction: column;
+	gap: 2px;
+	min-width: 0;
+}
+
+.passkey-name {
+	font-weight: 600;
+}
+
+.passkey-meta {
+	margin: 0;
+}
+
+.passkey-add-row {
+	display: flex;
+	gap: var(--s-2);
+	align-items: center;
+	margin-top: var(--s-3);
+}
+
+.passkey-add-row .field {
+	flex: 1;
+}
+
+.passkeys-error {
+	color: var(--danger);
+	margin: var(--s-2) 0 0;
+}
+
+.passkeys-signout {
+	margin-top: var(--s-3);
+	align-self: flex-start;
+}
+
+/* Costs */
+.costs-stats {
+	display: grid;
+	grid-template-columns: repeat(2, 1fr);
+	gap: var(--s-3);
+}
+
+@media (min-width: 560px) {
+	.costs-stats {
+		grid-template-columns: repeat(4, 1fr);
+	}
+}
+
+.table-scroll {
+	overflow-x: auto;
+}
+
+.costs-table {
+	width: 100%;
+	border-collapse: collapse;
+	font-size: var(--fs-sm);
+}
+
+.costs-table th,
+.costs-table td {
+	padding: var(--s-2) var(--s-3);
+	border-bottom: 1px solid var(--border);
+	text-align: left;
+	white-space: nowrap;
+}
+
+.costs-table th.num,
+.costs-table td.num {
+	text-align: right;
+	font-family: var(--font-mono);
+}
+
+.costs-table tbody tr:last-child td {
+	border-bottom: none;
+}
