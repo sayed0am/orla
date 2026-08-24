@@ -1,0 +1,96 @@
+/* Outfit — SIL Open Font License 1.1, self-hosted from Google Fonts */
+@font-face {
+	font-family: "Outfit";
+	src: url("/fonts/outfit-var.woff2") format("woff2-variations");
+	font-weight: 100 900;
+	font-style: normal;
+	font-display: swap;
+}
+
+*,
+*::before,
+*::after {
+	box-sizing: border-box;
+}
+
+body,
+h1,
+h2,
+h3,
+h4,
+h5,
+h6,
+p,
+figure {
+	margin: 0;
+}
+
+html {
+	-webkit-text-size-adjust: 100%;
+	min-height: calc(100% + env(safe-area-inset-top));
+	background: var(--bg);
+	background-attachment: fixed;
+}
+
+body {
+	position: relative;
+	font-family: var(--font);
+	font-size: var(--fs-body);
+	color: var(--ink);
+	background: var(--bg);
+	min-height: 100dvh;
+	overscroll-behavior-y: none;
+	-webkit-tap-highlight-color: transparent;
+	-webkit-font-smoothing: antialiased;
+}
+
+body::before {
+	content: "";
+	position: fixed;
+	inset: 0;
+	z-index: -1;
+	pointer-events: none;
+	background:
+		radial-gradient(600px 500px at 15% 10%, var(--wash-lilac), transparent 70%),
+		radial-gradient(600px 500px at 85% 90%, var(--wash-green), transparent 70%);
+}
+
+.screen {
+	padding: calc(env(safe-area-inset-top) + var(--s-4)) calc(env(safe-area-inset-right) + var(--s-4))
+		calc(96px + env(safe-area-inset-bottom)) calc(env(safe-area-inset-left) + var(--s-4));
+	max-width: 720px;
+	margin: 0 auto;
+}
+
+button,
+[role="tab"],
+a.tab,
+.tabbar,
+.tabbar-item,
+.chip,
+.seg,
+.seg-item {
+	user-select: none;
+}
+
+input,
+textarea {
+	font: inherit;
+	font-size: var(--fs-body);
+}
+
+:focus-visible {
+	outline: 2px solid var(--accent-blue);
+	outline-offset: 2px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+	*,
+	*::before,
+	*::after {
+		animation-duration: 0.01ms !important;
+		animation-iteration-count: 1 !important;
+		transition-duration: 0.01ms !important;
+		scroll-behavior: auto !important;
+	}
+}

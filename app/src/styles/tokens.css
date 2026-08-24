@@ -1,0 +1,73 @@
+:root {
+	/* Surfaces */
+	--bg: #f4f4f6;
+	--surface: rgba(255, 255, 255, 0.65);
+	--surface-strong: #ffffff;
+	--ink: #0a0a0a;
+	--ink-2: rgba(10, 10, 10, 0.55);
+	--border: rgba(10, 10, 10, 0.08);
+	--danger: #c23b2e;
+	--glass-shadow: 0 8px 32px rgba(10, 10, 10, 0.08);
+
+	/* Accents (same in both themes) */
+	--accent-lilac: #dad4e2;
+	--accent-green: #c3dca8;
+	--accent-blue: #2684fc;
+	--accent-blue-ink: #ffffff;
+
+	/* Tint helpers for bubble/tile backgrounds on glass */
+	--tint-lilac: rgba(218, 212, 226, 0.5);
+	--tint-green: rgba(195, 220, 168, 0.5);
+
+	/* Background wash alphas */
+	--wash-lilac: rgba(218, 212, 226, 0.45);
+	--wash-green: rgba(195, 220, 168, 0.45);
+
+	/* Glass */
+	--glass-blur: 18px;
+
+	/* Radii */
+	--r-lg: 28px;
+	--r-md: 20px;
+	--r-sm: 14px;
+	--r-pill: 999px;
+
+	/* Spacing (4px scale) */
+	--s-1: 4px;
+	--s-2: 8px;
+	--s-3: 12px;
+	--s-4: 16px;
+	--s-5: 24px;
+	--s-6: 32px;
+
+	/* Typography */
+	--font: "Outfit", system-ui, -apple-system, sans-serif;
+	--font-mono: ui-monospace, SFMono-Regular, Menlo, monospace;
+	--fs-hero: 28px;
+	--fs-title: 20px;
+	--fs-body: 16px;
+	--fs-sm: 14px;
+	--fs-xs: 12px;
+
+	/* Touch target */
+	--tap: 44px;
+}
+
+@media (prefers-color-scheme: dark) {
+	:root {
+		--bg: #000000;
+		--surface: rgba(255, 255, 255, 0.06);
+		--surface-strong: #131316;
+		--ink: #f5f5f7;
+		--ink-2: rgba(245, 245, 247, 0.55);
+		--border: rgba(255, 255, 255, 0.1);
+		--danger: #ff6b5e;
+		--glass-shadow: 0 8px 32px rgba(0, 0, 0, 0.5);
+
+		--tint-lilac: rgba(218, 212, 226, 0.16);
+		--tint-green: rgba(195, 220, 168, 0.16);
+
+		--wash-lilac: rgba(218, 212, 226, 0.14);
+		--wash-green: rgba(195, 220, 168, 0.14);
+	}
+}
