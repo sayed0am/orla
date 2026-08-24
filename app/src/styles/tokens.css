@@ -51,23 +51,25 @@
 
 	/* Touch target */
 	--tap: 44px;
+
+	color-scheme: light;
 }
 
-@media (prefers-color-scheme: dark) {
-	:root {
-		--bg: #000000;
-		--surface: rgba(255, 255, 255, 0.06);
-		--surface-strong: #131316;
-		--ink: #f5f5f7;
-		--ink-2: rgba(245, 245, 247, 0.55);
-		--border: rgba(255, 255, 255, 0.1);
-		--danger: #ff6b5e;
-		--glass-shadow: 0 8px 32px rgba(0, 0, 0, 0.5);
+:root[data-theme="dark"] {
+	--bg: #000000;
+	--surface: rgba(255, 255, 255, 0.06);
+	--surface-strong: #131316;
+	--ink: #f5f5f7;
+	--ink-2: rgba(245, 245, 247, 0.55);
+	--border: rgba(255, 255, 255, 0.1);
+	--danger: #ff6b5e;
+	--glass-shadow: 0 8px 32px rgba(0, 0, 0, 0.5);
 
-		--tint-lilac: rgba(218, 212, 226, 0.16);
-		--tint-green: rgba(195, 220, 168, 0.16);
+	--tint-lilac: rgba(218, 212, 226, 0.16);
+	--tint-green: rgba(195, 220, 168, 0.16);
 
-		--wash-lilac: rgba(218, 212, 226, 0.14);
-		--wash-green: rgba(195, 220, 168, 0.14);
-	}
+	--wash-lilac: rgba(218, 212, 226, 0.14);
+	--wash-green: rgba(195, 220, 168, 0.14);
+
+	color-scheme: dark;
 }
