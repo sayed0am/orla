@@ -122,6 +122,25 @@ textarea.field {
 	z-index: 40;
 }
 
+/* Floating chrome (tab bar) sits over scrolling content, so it needs a lighter fill and a
+   stronger frost than the base .glass surface to actually read as blurred glass. */
+.tabbar.glass {
+	background: var(--surface-float);
+}
+
+@supports (backdrop-filter: blur(1px)) or (-webkit-backdrop-filter: blur(1px)) {
+	.tabbar.glass {
+		-webkit-backdrop-filter: blur(24px) saturate(1.7);
+		backdrop-filter: blur(24px) saturate(1.7);
+	}
+}
+
+@supports not ((backdrop-filter: blur(1px)) or (-webkit-backdrop-filter: blur(1px))) {
+	.tabbar.glass {
+		background: var(--surface-strong);
+	}
+}
+
 .tabbar-item {
 	position: relative;
 	display: flex;
@@ -389,6 +408,13 @@ button.chip {
 .login-hero {
 	font-size: var(--fs-hero);
 	font-weight: 600;
+}
+
+/* Brand wordmark — decorative Yatra One display face, used only where "Orla" appears as a
+   heading/logo, never in body copy, buttons, or document titles. */
+.brand {
+	font-family: var(--font-brand);
+	font-weight: 400;
 }
 
 .login-card h1 {

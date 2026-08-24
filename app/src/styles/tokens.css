@@ -3,6 +3,7 @@
 	--bg: #f4f4f6;
 	--surface: rgba(255, 255, 255, 0.65);
 	--surface-strong: #ffffff;
+	--surface-float: rgba(255, 255, 255, 0.42);
 	--ink: #0a0a0a;
 	--ink-2: rgba(10, 10, 10, 0.55);
 	--border: rgba(10, 10, 10, 0.08);
@@ -42,6 +43,7 @@
 
 	/* Typography */
 	--font: "Outfit", system-ui, -apple-system, sans-serif;
+	--font-brand: "Yatra One", var(--font);
 	--font-mono: ui-monospace, SFMono-Regular, Menlo, monospace;
 	--fs-hero: 28px;
 	--fs-title: 20px;
@@ -59,6 +61,7 @@
 	--bg: #000000;
 	--surface: rgba(255, 255, 255, 0.06);
 	--surface-strong: #131316;
+	--surface-float: rgba(19, 19, 22, 0.45);
 	--ink: #f5f5f7;
 	--ink-2: rgba(245, 245, 247, 0.55);
 	--border: rgba(255, 255, 255, 0.1);

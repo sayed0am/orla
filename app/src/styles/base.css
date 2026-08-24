@@ -7,6 +7,16 @@
 	font-display: swap;
 }
 
+/* Yatra One — SIL Open Font License 1.1, self-hosted from Google Fonts. Decorative brand
+   wordmark font only — not preloaded. */
+@font-face {
+	font-family: "Yatra One";
+	src: url("/fonts/yatra-one.woff2") format("woff2");
+	font-weight: 400;
+	font-style: normal;
+	font-display: swap;
+}
+
 *,
 *::before,
 *::after {

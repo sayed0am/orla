@@ -179,6 +179,25 @@
 	border-radius: var(--r-pill);
 }
 
+/* Floating chrome sits over scrolling messages, so it needs a lighter fill and a stronger frost
+   than the base .glass surface to actually read as blurred glass. */
+.composer.glass {
+	background: var(--surface-float);
+}
+
+@supports (backdrop-filter: blur(1px)) or (-webkit-backdrop-filter: blur(1px)) {
+	.composer.glass {
+		-webkit-backdrop-filter: blur(24px) saturate(1.7);
+		backdrop-filter: blur(24px) saturate(1.7);
+	}
+}
+
+@supports not ((backdrop-filter: blur(1px)) or (-webkit-backdrop-filter: blur(1px))) {
+	.composer.glass {
+		background: var(--surface-strong);
+	}
+}
+
 .composer-input {
 	flex: 1;
 	min-width: 0;

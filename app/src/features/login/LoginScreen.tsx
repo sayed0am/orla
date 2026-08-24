@@ -70,7 +70,7 @@ export default function LoginScreen({ status, onSuccess }: LoginScreenProps) {
 	return (
 		<div className="login-view">
 			<GlassCard className="login-card">
-				<p className="login-hero">Orla</p>
+				<p className="login-hero brand">Orla</p>
 				<p className="hint">A personal assistant that lives at the edge.</p>
 				{!isSupported() ? (
 					<Unsupported />
