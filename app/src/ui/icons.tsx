@@ -11,6 +11,7 @@ import {
 	IconX,
 	IconChevronLeft as TablerIconChevronLeft,
 	IconChevronRight as TablerIconChevronRight,
+	IconMenu2 as TablerIconMenu,
 	IconSettings as TablerIconSettings,
 } from "@tabler/icons-react";
 
@@ -31,3 +32,4 @@ export const IconSend = wrap(IconArrowUp, "Send");
 export const IconClose = wrap(IconX, "Close");
 export const IconChevronLeft = wrap(TablerIconChevronLeft, "Previous");
 export const IconChevronRight = wrap(TablerIconChevronRight, "Next");
+export const IconMenu = wrap(TablerIconMenu, "Threads");

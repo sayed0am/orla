@@ -10,11 +10,9 @@
 	--danger: #c23b2e;
 	--glass-shadow: 0 8px 32px rgba(10, 10, 10, 0.08);
 
-	/* Accents (same in both themes) */
-	--accent-lilac: #dad4e2;
-	--accent-green: #c3dca8;
-	--accent-blue: #2684fc;
-	--accent-blue-ink: #ffffff;
+	/* Accent: solid ink — monochrome, no blue */
+	--accent: var(--ink);
+	--accent-ink: #ffffff;
 
 	/* Tint helpers for bubble/tile backgrounds on glass */
 	--tint-lilac: rgba(218, 212, 226, 0.5);
@@ -23,6 +21,10 @@
 	/* Background wash alphas */
 	--wash-lilac: rgba(218, 212, 226, 0.45);
 	--wash-green: rgba(195, 220, 168, 0.45);
+
+	/* Mode-tinted page backgrounds: subtle lavender for chat, sage for jot */
+	--mode-chat-bg: color-mix(in srgb, #dad4e2 40%, var(--bg));
+	--mode-jot-bg: color-mix(in srgb, #c3dca8 32%, var(--bg));
 
 	/* Glass */
 	--glass-blur: 18px;
@@ -68,11 +70,16 @@
 	--danger: #ff6b5e;
 	--glass-shadow: 0 8px 32px rgba(0, 0, 0, 0.5);
 
+	--accent-ink: #131316;
+
 	--tint-lilac: rgba(218, 212, 226, 0.16);
 	--tint-green: rgba(195, 220, 168, 0.16);
 
 	--wash-lilac: rgba(218, 212, 226, 0.14);
 	--wash-green: rgba(195, 220, 168, 0.14);
+
+	--mode-chat-bg: color-mix(in srgb, #dad4e2 10%, var(--bg));
+	--mode-jot-bg: color-mix(in srgb, #c3dca8 8%, var(--bg));
 
 	color-scheme: dark;
 }

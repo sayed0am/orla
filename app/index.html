@@ -6,11 +6,17 @@
 		<title>Orla</title>
 		<meta name="description" content="Orla — a personal assistant that lives at the edge." />
 		<script>
-			try {
-				if (localStorage.getItem("orla-theme") === "dark") {
-					document.documentElement.dataset.theme = "dark";
-				}
-			} catch (_) {}
+			(() => {
+				try {
+					const t = localStorage.getItem("orla-theme");
+					if (
+						t === "dark" ||
+						(t !== "light" && matchMedia("(prefers-color-scheme: dark)").matches)
+					) {
+						document.documentElement.dataset.theme = "dark";
+					}
+				} catch (_) {}
+			})();
 		</script>
 		<meta name="theme-color" content="#f4f4f6" id="meta-theme-color" />
 		<meta name="mobile-web-app-capable" content="yes" />

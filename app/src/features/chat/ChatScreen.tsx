@@ -1,12 +1,13 @@
 /**
- * Chat tab: conversation list + streaming message view (PRD F1). React port of `public/chat.js`'s
- * `mountChat` — see that file and `app/src/hooks/useChatStream.ts` for the behavior ported here.
+ * Chat mode: streaming message view with a full-screen Threads list behind the hamburger (at
+ * every width). React port of `public/chat.js`'s `mountChat` — see that file and
+ * `app/src/hooks/useChatStream.ts` for the behavior ported here.
  */
 
 import { useCallback, useEffect, useState } from "react";
 import { useChatStream } from "../../hooks/useChatStream";
 import { apiFetch } from "../../lib/api";
-import { IconChevronLeft } from "../../ui/icons";
+import { IconMenu } from "../../ui/icons";
 import Composer from "./Composer";
 import ConversationList, {
 	type ConversationListState,
@@ -18,7 +19,9 @@ import "./chat.css";
 export default function ChatScreen() {
 	const [listState, setListState] = useState<ConversationListState>({ status: "loading" });
 	const [activeId, setActiveId] = useState<string | null>(null);
-	const [mobileOpen, setMobileOpen] = useState(false);
+	const [threadsOpen, setThreadsOpen] = useState(false);
+	// A message typed before any conversation exists — sent as soon as one is created.
+	const [queued, setQueued] = useState<string | null>(null);
 
 	const loadConversations = useCallback(async () => {
 		let res: Response;
@@ -47,10 +50,10 @@ export default function ChatScreen() {
 
 	function openConversation(id: string) {
 		setActiveId(id);
-		setMobileOpen(true);
+		setThreadsOpen(false);
 	}
 
-	async function createConversation() {
+	async function createConversation(): Promise<void> {
 		let res: Response;
 		try {
 			res = await apiFetch("/api/conversations", { method: "POST" });
@@ -68,28 +71,69 @@ export default function ChatScreen() {
 
 	const { items, sending, send, resolveConfirm } = useChatStream(activeId);
 
-	const mainClasses = ["chat-main", mobileOpen ? null : "chat-main-hidden"]
-		.filter(Boolean)
-		.join(" ");
+	// Flush the queued first message once its freshly created conversation is active.
+	useEffect(() => {
+		if (queued !== null && activeId !== null) {
+			setQueued(null);
+			send(queued);
+		}
+	}, [queued, activeId, send]);
+
+	function handleSend(text: string) {
+		if (activeId !== null) {
+			send(text);
+			return;
+		}
+		setQueued(text);
+		void createConversation();
+	}
+
+	if (threadsOpen) {
+		return (
+			<div className="chat-view">
+				<div className="chat-threads">
+					<div className="chat-threads-header">
+						<button type="button" className="back-link" onClick={() => setThreadsOpen(false)}>
+							‹ Back
+						</button>
+						<span className="label">Threads</span>
+						<span className="chat-threads-spacer" />
+					</div>
+					<ConversationList
+						state={listState}
+						activeId={activeId}
+						hidden={false}
+						onSelect={(id) => {
+							// Drop any message queued for a conversation that never got created.
+							setQueued(null);
+							openConversation(id);
+						}}
+						onNew={() => void createConversation()}
+					/>
+				</div>
+			</div>
+		);
+	}
 
 	return (
 		<div className="chat-view">
-			<ConversationList
-				state={listState}
-				activeId={activeId}
-				hidden={mobileOpen}
-				onSelect={openConversation}
-				onNew={createConversation}
-			/>
-			<div className={mainClasses}>
-				<div className="chat-back-bar">
-					<button type="button" className="chat-back-button" onClick={() => setMobileOpen(false)}>
-						<IconChevronLeft width={18} height={18} />
-						Conversations
+			<div className="chat-main">
+				<div className="chat-top-row">
+					<button
+						type="button"
+						className="icon-btn"
+						aria-label="Threads"
+						onClick={() => setThreadsOpen(true)}
+					>
+						<IconMenu width={16} height={16} />
 					</button>
 				</div>
-				<MessageList items={items} activeId={activeId} onResolveConfirm={resolveConfirm} />
-				<Composer onSend={send} disabled={sending} />
+				{activeId !== null ? (
+					<MessageList items={items} activeId={activeId} onResolveConfirm={resolveConfirm} />
+				) : (
+					<div className="chat-idle">Ask Orla anything</div>
+				)}
+				<Composer onSend={handleSend} disabled={sending} />
 			</div>
 		</div>
 	);

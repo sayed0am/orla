@@ -1,7 +1,13 @@
-/* Journal screen: Organized filters/entries + Raw notes. Scoped classes only — components.css
-   is untouched. */
+/* Journal mode: Organized filters/entries + Raw notes. Rendered inside HomeShell's .home-body. */
 
-.screen > .seg {
+.journal-view {
+	flex: 1;
+	min-height: 0;
+	overflow-y: auto;
+	padding: var(--s-2) var(--s-1) var(--s-4);
+}
+
+.journal-view > .seg {
 	margin-bottom: var(--s-4);
 }
 
@@ -47,9 +53,10 @@
 }
 
 .journal-type-chip.active {
-	background: color-mix(in srgb, var(--accent-blue) 18%, transparent);
+	background: color-mix(in srgb, var(--ink) 12%, transparent);
 	border-color: transparent;
-	color: var(--accent-blue);
+	color: var(--ink);
+	font-weight: 600;
 }
 
 /* Entry list */

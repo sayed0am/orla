@@ -285,7 +285,7 @@ export default function McpServers() {
 	}
 
 	return (
-		<GlassCard title="MCP servers">
+		<GlassCard title="MCP servers" collapsible>
 			{servers === null && !loadError ? <p className="hint">Loading…</p> : null}
 			{loadError ? <p className="hint">Couldn't load MCP servers.</p> : null}
 			{servers !== null ? (

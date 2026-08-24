@@ -373,7 +373,7 @@ export default function MemoryFacts() {
 	const active = (facts ?? []).filter((f) => f.status === "active");
 
 	return (
-		<GlassCard title="Memory">
+		<GlassCard title="Memory" collapsible>
 			{facts === null && !loadError ? <p className="hint">Loading…</p> : null}
 			{loadError ? <p className="hint">Couldn't load memory.</p> : null}
 			{facts !== null ? (

@@ -201,7 +201,7 @@ export default function Passkeys() {
 	}
 
 	return (
-		<GlassCard title="Passkeys">
+		<GlassCard title="Passkeys" collapsible>
 			{credentials === null && !loadError ? <p className="hint">Loading…</p> : null}
 			{loadError ? <p className="hint">Couldn't load passkeys.</p> : null}
 			{credentials !== null ? (

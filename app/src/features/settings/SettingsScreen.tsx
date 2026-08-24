@@ -1,12 +1,11 @@
-/** Settings tab: Appearance, Notifications, Maintenance, Memory, Passkeys (passkey mode only),
- * MCP servers, and Costs. Everything but Appearance is a port of sections that used to live in
- * public/brief.js (F4) and public/costs.js. */
+/** Settings screen: Appearance, then collapsible Notifications, Maintenance, Memory, Passkeys
+ * (passkey mode only), MCP servers, and Costs sections. Everything but Appearance is a port of
+ * sections that used to live in public/brief.js (F4) and public/costs.js. */
 
 import { useEffect, useRef } from "react";
 import { useAuth } from "../../hooks/useAuth";
-import { useTheme } from "../../hooks/useTheme";
+import { type Theme, useTheme } from "../../hooks/useTheme";
 import GlassCard from "../../ui/GlassCard";
-import SegmentedTabs from "../../ui/SegmentedTabs";
 import Costs from "./Costs";
 import Maintenance from "./Maintenance";
 import McpServers from "./McpServers";
@@ -19,7 +18,8 @@ interface SettingsScreenProps {
 	sub?: "raw" | "costs";
 }
 
-const THEME_OPTIONS = [
+const THEME_OPTIONS: { value: Theme; label: string }[] = [
+	{ value: "system", label: "System" },
 	{ value: "light", label: "Light" },
 	{ value: "dark", label: "Dark" },
 ];
@@ -38,16 +38,35 @@ export default function SettingsScreen({ sub }: SettingsScreenProps) {
 
 	return (
 		<div className="screen">
+			<div className="settings-topbar">
+				<a className="back-link" href="#capture">
+					‹ Back
+				</a>
+				<span className="label">Settings</span>
+			</div>
 			<div className="settings-sections">
 				<GlassCard title="Appearance">
-					<div className="settings-row">
-						<span>Theme</span>
-						<SegmentedTabs
-							options={THEME_OPTIONS}
-							value={theme}
-							onChange={(value) => setTheme(value === "dark" ? "dark" : "light")}
-						/>
-					</div>
+					<fieldset className="theme-swatches">
+						<legend className="visually-hidden">Theme</legend>
+						{THEME_OPTIONS.map(({ value, label }) => (
+							<label
+								key={value}
+								className={["theme-swatch", theme === value ? "theme-swatch-active" : null]
+									.filter(Boolean)
+									.join(" ")}
+							>
+								<input
+									type="radio"
+									name="theme"
+									className="visually-hidden"
+									checked={theme === value}
+									onChange={() => setTheme(value)}
+								/>
+								<span className={`theme-swatch-circle theme-swatch-${value}`} aria-hidden="true" />
+								{label}
+							</label>
+						))}
+					</fieldset>
 				</GlassCard>
 				<PushSettings />
 				<Maintenance />
@@ -55,7 +74,7 @@ export default function SettingsScreen({ sub }: SettingsScreenProps) {
 				{status?.mode === "passkey" ? <Passkeys /> : null}
 				<McpServers />
 				<div ref={costsRef}>
-					<Costs />
+					<Costs defaultOpen={sub === "costs"} />
 				</div>
 			</div>
 		</div>

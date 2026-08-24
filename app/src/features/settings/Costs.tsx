@@ -139,7 +139,7 @@ function DailyTable({ rows }: { rows: DayRow[] }) {
 	);
 }
 
-export default function Costs() {
+export default function Costs({ defaultOpen = false }: { defaultOpen?: boolean }) {
 	const [days, setDays] = useState(DEFAULT_DAYS);
 	const [data, setData] = useState<CostsData | null>(null);
 	const [loadError, setLoadError] = useState(false);
@@ -177,7 +177,7 @@ export default function Costs() {
 	}, [days]);
 
 	return (
-		<GlassCard title="Costs">
+		<GlassCard title="Costs" collapsible defaultOpen={defaultOpen}>
 			<SegmentedTabs options={DAY_OPTIONS} value={days} onChange={setDays} />
 			{loadError ? <p className="hint">Couldn't load the cost dashboard.</p> : null}
 			{!loadError && data === null ? <p className="hint">Loading…</p> : null}

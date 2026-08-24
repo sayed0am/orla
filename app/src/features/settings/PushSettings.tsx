@@ -195,7 +195,7 @@ export default function PushSettings() {
 	}
 
 	return (
-		<GlassCard title="Notifications">
+		<GlassCard title="Notifications" collapsible>
 			{view.kind === "loading" ? <p className="hint">Loading…</p> : null}
 			{view.kind === "unsupported" ? (
 				<>

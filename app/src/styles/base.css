@@ -52,6 +52,16 @@ body {
 	overscroll-behavior-y: none;
 	-webkit-tap-highlight-color: transparent;
 	-webkit-font-smoothing: antialiased;
+	transition: background 0.2s;
+}
+
+/* Subtle mode tint, driven by HomeShell via <body data-mode="…"> */
+body[data-mode="capture"] {
+	background: var(--mode-jot-bg);
+}
+
+body[data-mode="chat"] {
+	background: var(--mode-chat-bg);
 }
 
 body::before {
@@ -67,19 +77,19 @@ body::before {
 
 .screen {
 	padding: calc(env(safe-area-inset-top) + var(--s-4)) calc(env(safe-area-inset-right) + var(--s-4))
-		calc(96px + env(safe-area-inset-bottom)) calc(env(safe-area-inset-left) + var(--s-4));
+		calc(var(--s-6) + env(safe-area-inset-bottom)) calc(env(safe-area-inset-left) + var(--s-4));
 	max-width: 720px;
 	margin: 0 auto;
 }
 
 button,
 [role="tab"],
-a.tab,
-.tabbar,
-.tabbar-item,
 .chip,
 .seg,
-.seg-item {
+.seg-item,
+.icon-btn,
+.mode-switcher,
+.mode-dots {
 	user-select: none;
 }
 
@@ -90,7 +100,7 @@ textarea {
 }
 
 :focus-visible {
-	outline: 2px solid var(--accent-blue);
+	outline: 2px solid var(--ink);
 	outline-offset: 2px;
 }
 

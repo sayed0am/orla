@@ -1,5 +1,4 @@
 import { useEffect } from "react";
-import BriefScreen from "./features/brief/BriefScreen";
 import CaptureScreen from "./features/capture/CaptureScreen";
 import ChatScreen from "./features/chat/ChatScreen";
 import JournalScreen from "./features/journal/JournalScreen";
@@ -10,7 +9,8 @@ import { useHashRoute } from "./hooks/useHashRoute";
 import { usePendingActions } from "./hooks/usePendingActions";
 import { useSwUpdate } from "./hooks/useSwUpdate";
 import type { Route } from "./routes";
-import TabBar from "./ui/TabBar";
+import HomeShell from "./ui/HomeShell";
+import { IconJournal } from "./ui/icons";
 
 const DEFAULT_HASH = "#capture";
 
@@ -43,9 +43,9 @@ function Shell() {
 	// Passkey mode with no session, or still booting, doesn't count as "showing the app".
 	const showingApp = status !== null && !(status.mode === "passkey" && !status.authenticated);
 
-	// Fetched here (not inside ChatScreen) so the Chat tab's badge is right even when another tab
-	// is active — see app/src/hooks/usePendingActions.ts. Gated on `showingApp` so it doesn't fire
-	// (and 401) before login/boot resolves.
+	// Fetched here (not inside ChatScreen) so the chat mode dot's badge is right even when another
+	// mode is active — see app/src/hooks/usePendingActions.ts. Gated on `showingApp` so it doesn't
+	// fire (and 401) before login/boot resolves.
 	const pendingActions = usePendingActions(showingApp);
 
 	useEffect(() => {
@@ -55,7 +55,7 @@ function Shell() {
 	}, [showingApp]);
 
 	// Booting: GET /api/auth/status hasn't resolved yet — match the old app.js behavior of an
-	// empty <main> with the tab bar hidden until boot() decides what to show.
+	// empty <main> until boot() decides what to show.
 	if (status === null) {
 		return null;
 	}
@@ -73,22 +73,49 @@ function Shell() {
 					</p>
 				</div>
 			) : null}
-			<ActiveScreen route={route} />
-			<TabBar active={route.tab} badge={pendingActions} />
+			<ActiveScreen route={route} pendingActions={pendingActions} />
 		</>
 	);
 }
 
-function ActiveScreen({ route }: { route: Route }) {
+function ActiveScreen({ route, pendingActions }: { route: Route; pendingActions: number }) {
 	switch (route.tab) {
 		case "capture":
-			return <CaptureScreen />;
-		case "chat":
-			return <ChatScreen />;
+		// #brief (manifest shortcut, old bookmarks) is Jot with the brief day-sheet open.
 		case "brief":
-			return <BriefScreen />;
+			return (
+				<HomeShell
+					mode="capture"
+					badge={pendingActions}
+					leftSlot={
+						<a className="icon-btn" href="#journal" aria-label="Open journal">
+							<IconJournal width={16} height={16} />
+						</a>
+					}
+				>
+					<CaptureScreen briefOpen={route.tab === "brief"} />
+				</HomeShell>
+			);
+		case "chat":
+			return (
+				<HomeShell mode="chat" badge={pendingActions}>
+					<ChatScreen />
+				</HomeShell>
+			);
 		case "journal":
-			return <JournalScreen sub={route.sub} />;
+			return (
+				<HomeShell
+					mode="journal"
+					badge={pendingActions}
+					leftSlot={
+						<a className="back-link" href="#capture">
+							‹ Back
+						</a>
+					}
+				>
+					<JournalScreen sub={route.sub} />
+				</HomeShell>
+			);
 		case "settings":
 			return <SettingsScreen sub={route.sub} />;
 		default:

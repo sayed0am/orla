@@ -33,6 +33,7 @@ export default function Sheet({ open, onClose, children }: SheetProps) {
 				onKeyDown={onOverlayKeyDown}
 			/>
 			<div className="sheet" role="dialog" aria-modal="true" onClick={stop} onKeyDown={stopKey}>
+				<div className="sheet-handle" aria-hidden="true" />
 				{children}
 			</div>
 		</div>

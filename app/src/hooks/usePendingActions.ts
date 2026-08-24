@@ -1,6 +1,6 @@
 /**
  * Pending act-tier actions count, shown as a badge on the Chat tab (PRD §12 tap-to-confirm). Port
- * of chat.js's `loadActionsBadge`, lifted out of the Chat screen so `App`'s `TabBar` can show it
+ * of chat.js's `loadActionsBadge`, lifted out of the Chat screen so the chat mode dot can show it
  * even when Chat isn't the active screen.
  *
  * Every mounted consumer fetches independently on mount, and all of them refetch together whenever

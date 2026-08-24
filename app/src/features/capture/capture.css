@@ -1,33 +1,64 @@
-.capture-card {
-	gap: var(--s-4);
+/* Jot mode (PRD F2, G1): brief pill, glass compose card, tag chips, private toggle, Save fab.
+   Rendered inside HomeShell's .home-body. */
+
+.capture-view {
+	display: flex;
+	flex-direction: column;
+	flex: 1;
+	min-height: 0;
+	gap: var(--s-3);
+	padding-top: var(--s-2);
+}
+
+.capture-brief-pill {
+	display: block;
+	width: 100%;
+	text-align: left;
+	border-radius: var(--r-md);
+	padding: var(--s-3) var(--s-4);
+	font-family: var(--font);
+	font-size: var(--fs-sm);
+	color: var(--ink);
+	cursor: pointer;
 }
 
 .capture-textarea {
+	flex: 1;
 	width: 100%;
-	min-height: 40vh;
-	border: none;
+	min-height: 30vh;
+	border-radius: var(--r-lg);
 	outline: none;
-	resize: vertical;
-	background: transparent;
+	resize: none;
 	color: var(--ink);
 	font-family: var(--font);
 	font-size: var(--fs-body);
 	line-height: 1.5;
-	padding: 0;
+	padding: var(--s-4);
 }
 
 .capture-textarea::placeholder {
 	color: var(--ink-2);
 }
 
-.capture-footer {
+/* Visual-only for now: the outbox schema has no tags field yet. */
+.capture-tags-row {
 	display: flex;
-	align-items: center;
-	gap: var(--s-3);
+	flex-wrap: wrap;
+	gap: var(--s-2);
+}
+
+.capture-tags-row .chip-add {
+	color: var(--ink-2);
 }
 
 .capture-private-toggle {
 	background: var(--surface);
+}
+
+.capture-footer {
+	display: flex;
+	align-items: center;
+	gap: var(--s-3);
 }
 
 .capture-hint {
@@ -47,7 +78,6 @@
 .capture-status-row {
 	display: flex;
 	gap: var(--s-2);
-	margin-top: var(--s-3);
 }
 
 .chip-danger {

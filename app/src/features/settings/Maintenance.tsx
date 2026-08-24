@@ -84,7 +84,7 @@ export default function Maintenance() {
 	}
 
 	return (
-		<GlassCard title="Maintenance">
+		<GlassCard title="Maintenance" collapsible>
 			{lastRun === undefined && !loadError ? <p className="hint">Loading…</p> : null}
 			{loadError ? <p className="hint">Couldn't load reorganization status.</p> : null}
 			{!loadError && lastRun !== undefined ? (

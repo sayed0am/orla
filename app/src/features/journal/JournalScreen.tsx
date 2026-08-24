@@ -26,7 +26,7 @@ export default function JournalScreen({ sub }: JournalScreenProps) {
 	}, [sub]);
 
 	return (
-		<div className="screen">
+		<div className="journal-view">
 			<SegmentedTabs
 				options={[
 					{ value: "organized", label: "Organized" },

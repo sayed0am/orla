@@ -12,8 +12,8 @@ import {
 } from "../../../sw/outbox.js";
 import Chip from "../../ui/Chip";
 import Fab from "../../ui/Fab";
-import GlassCard from "../../ui/GlassCard";
 import { IconSend } from "../../ui/icons";
+import BriefSheet from "../brief/BriefSheet";
 import "./capture.css";
 
 interface SyncRegistration extends ServiceWorkerRegistration {
@@ -32,7 +32,12 @@ function flushOnce(): Promise<FlushResult> {
 	return flushInFlight;
 }
 
-export default function CaptureScreen() {
+interface CaptureScreenProps {
+	/** True when the route is #brief — Jot with the brief day-sheet open. */
+	briefOpen?: boolean;
+}
+
+export default function CaptureScreen({ briefOpen = false }: CaptureScreenProps) {
 	const [body, setBody] = useState("");
 	const [isPrivate, setIsPrivate] = useState(false);
 	const [pendingCount, setPendingCount] = useState(0);
@@ -120,40 +125,55 @@ export default function CaptureScreen() {
 	}, [refreshCounts]);
 
 	return (
-		<div className="screen">
-			<GlassCard className="capture-card">
-				<textarea
-					ref={textareaRef}
-					id="capture-body"
-					className="capture-textarea"
-					placeholder="Capture a thought…"
-					rows={1}
-					value={body}
-					onChange={(e) => setBody(e.target.value)}
-					onKeyDown={onKeyDown}
-				/>
-				<div className="capture-footer">
-					<button
-						type="button"
-						className={`chip capture-private-toggle${isPrivate ? " chip-lilac" : ""}`}
-						aria-pressed={isPrivate}
-						onClick={() => setIsPrivate((v) => !v)}
-					>
-						Private
-					</button>
-					<span className="capture-hint hint">Cmd/Ctrl+Enter to save</span>
-					<span className="capture-spacer" />
-					<Fab aria-label="Save" onClick={save}>
-						<IconSend />
-					</Fab>
-				</div>
-			</GlassCard>
-			{pendingCount > 0 || failedCount > 0 ? (
-				<div className="capture-status-row">
-					{pendingCount > 0 ? <Chip tone="green">{pendingCount} pending</Chip> : null}
-					{failedCount > 0 ? <Chip tone="danger">{failedCount} failed</Chip> : null}
-				</div>
-			) : null}
+		<div className="capture-view">
+			<button
+				type="button"
+				className="glass capture-brief-pill"
+				onClick={() => {
+					window.location.hash = "#brief";
+				}}
+			>
+				Today's brief ›
+			</button>
+			<textarea
+				ref={textareaRef}
+				id="capture-body"
+				className="glass capture-textarea"
+				placeholder="type or paste anything…"
+				rows={1}
+				value={body}
+				onChange={(e) => setBody(e.target.value)}
+				onKeyDown={onKeyDown}
+			/>
+			{/* Visual-only for now — the outbox schema has no tags field yet. */}
+			<div className="capture-tags-row">
+				<span className="chip">#idea</span>
+				<span className="chip">#todo</span>
+				<span className="chip chip-add">+ add tag</span>
+			</div>
+			<div className="capture-footer">
+				<button
+					type="button"
+					className={`chip capture-private-toggle${isPrivate ? " chip-lilac" : ""}`}
+					aria-pressed={isPrivate}
+					onClick={() => setIsPrivate((v) => !v)}
+				>
+					Private
+				</button>
+				<span className="capture-hint hint">Cmd/Ctrl+Enter to save</span>
+				{pendingCount > 0 ? <Chip tone="green">{pendingCount} pending</Chip> : null}
+				{failedCount > 0 ? <Chip tone="danger">{failedCount} failed</Chip> : null}
+				<span className="capture-spacer" />
+				<Fab aria-label="Save" onClick={save}>
+					<IconSend />
+				</Fab>
+			</div>
+			<BriefSheet
+				open={briefOpen}
+				onClose={() => {
+					window.location.replace("#capture");
+				}}
+			/>
 		</div>
 	);
 }

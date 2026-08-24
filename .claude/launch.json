@@ -1,0 +1,17 @@
+{
+	"version": "0.0.1",
+	"configurations": [
+		{
+			"name": "orla-dev",
+			"runtimeExecutable": "npx",
+			"runtimeArgs": ["wrangler", "dev", "--var", "AUTH_MODE:access", "--port", "8787"],
+			"port": 8787
+		},
+		{
+			"name": "orla-dev-passkey",
+			"runtimeExecutable": "npx",
+			"runtimeArgs": ["wrangler", "dev", "--port", "8787"],
+			"port": 8787
+		}
+	]
+}
