@@ -19,6 +19,6 @@ Two things this installer cannot do for you (PRD Sec.7 security prerequisites):
     ${ZDR_SETTINGS_URL}
 
 To update later:
-  cd ${dir} && git pull && npm ci && npx wrangler d1 migrations apply ${D1_BINDING} --remote && npx wrangler deploy
+  cd ${dir} && git pull && npm ci && npm run build && npx wrangler d1 migrations apply ${D1_BINDING} --remote && npx wrangler deploy
 `;
 }

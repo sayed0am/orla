@@ -14,6 +14,15 @@ export async function npmCi(runner, { dir }) {
 	return { ok: result.code === 0, stdout: result.stdout, stderr: result.stderr };
 }
 
+/** `npm run build` in the checkout — builds the React frontend (app/) into dist/, which
+ * wrangler.jsonc's assets binding serves. Must run before deploy (and before migrate, since
+ * `npm run pretest`/CI order isn't relevant here but keeping build ahead of any wrangler call
+ * keeps the checkout deployable at every subsequent step). */
+export async function npmBuild(runner, { dir }) {
+	const result = await runner.capture("npm", ["run", "build"], { cwd: dir });
+	return { ok: result.code === 0, stdout: result.stdout, stderr: result.stderr };
+}
+
 /** `wrangler d1 migrations apply <binding> --remote`. Piped stdio means `process.stdin.isTTY` is
  * false, which wrangler's own docs say skips the interactive confirmation prompt (still runs a
  * backup first) — see `wrangler d1 migrations apply --help`'s epilogue. Resolves the database by

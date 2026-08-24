@@ -11,9 +11,21 @@ Derived from `personal-assistant-prd.md` §5 and §9. Phase 1 exit: *I chat with
 | @biomejs/biome | 2.5.10 | lint + format (tabs, 100 cols) |
 | @cloudflare/vitest-pool-workers | 0.9.14 | pins its own miniflare 4.20251011 / wrangler 4.44 |
 | vitest | 3.2.7 | last 3.x; pool 0.9 peer range is `2.0.x - 3.2.x` |
+| react | 19.2.8 | added 2026-08-24 — see toolchain amendment below |
+| react-dom | 19.2.8 | added 2026-08-24 |
+| vite | 6.4.3 | added 2026-08-24; builds `app/` to `dist/` |
+| @vitejs/plugin-react | 4.7.0 | added 2026-08-24 |
+| @types/react | 19.2.18 | added 2026-08-24 |
+| @types/react-dom | 19.2.5 | added 2026-08-24 |
 
 Exact versions are pinned in `package.json` and `.npmrc` has `save-exact=true`. Upgrading the pool to
 ≥0.10 requires vitest 4 (see `npm view @cloudflare/vitest-pool-workers peerDependencies`).
+
+**Toolchain amendment (2026-08-24):** the frontend moved from the plain TS/HTML shell in step 7
+below to Vite + React (`app/`, builds to `dist/`, served by wrangler's assets binding). Driven by
+the design revamp plus the maintainability cost of the imperative-DOM `public/` shell, which had
+grown to ~5k lines (`brief.js` alone was 1.4k lines). `public/` is retired; see NOTES.md for the
+dev-loop and service-worker details this introduced.
 
 Known constraint: tests run at `compatibilityDate: 2025-09-01` (see `vitest.config.ts`) because the
 pinned pool's workerd fails with `nodejs_compat` at newer dates. Deploy uses `wrangler.jsonc`'s date.
@@ -43,6 +55,8 @@ pinned pool's workerd fails with `nodejs_compat` at newer dates. Deploy uses `wr
    `completion_tokens` / cost to `llm_calls` on every call.
 7. **PWA shell** — `public/`: manifest, service worker (offline capture queue → background sync),
    chat view, capture box. Plain TS/HTML, no framework until a real need appears.
+   (Superseded 2026-08-24 — see the toolchain amendment above: `public/` was retired for a Vite +
+   React `app/`.)
 8. **Tests** — pool-based integration tests per route; D1 migrations applied in `vitest.config.ts`
    setup once the schema stabilises.
 

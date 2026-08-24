@@ -1,6 +1,6 @@
 # Orla — open items
 
-_Last updated 2026-08-23. Phases 1–2 are live at orla.sayed0am.workers.dev._
+_Last updated 2026-08-24. Phases 1–2 are live at orla.sayed0am.workers.dev._
 
 ## Phase 3 (in progress)
 
@@ -38,6 +38,19 @@ _Last updated 2026-08-23. Phases 1–2 are live at orla.sayed0am.workers.dev._
    - Custom domain option in the installer (currently only the `*.workers.dev` URL from `wrangler
      deploy`; `wrangler deploy --domain` exists but needs a zone already on the account, which the
      installer doesn't prompt for).
+7. **Frontend revamp — Vite + React** — DONE (code) 2026-08-24; `public/` (the old imperative-DOM
+   shell) is retired. `app/` builds via `npm run build` (`vite build app`) into `dist/`, served by
+   the `ASSETS` binding wrangler.jsonc already points at. Dev loop is `npm run dev:app` (`vite
+   build app --watch`) run alongside `npm run dev` (`wrangler dev`, serving `dist/`) on one
+   origin — deliberately not a Vite dev server on :5173, because WebAuthn's rpId/origin is
+   request-derived; a separate dev-server origin would break passkeys and need an SSE proxy for
+   the chat stream. The service-worker precache list is generated at build time by the `orlaSw()`
+   plugin in `app/vite.config.ts`, which emits `sw.js` and `outbox.js` unhashed at the `dist/`
+   root. Theme is manual light/dark (`localStorage` key `orla-theme`, light default) instead of
+   `prefers-color-scheme`. Installer gained a `build` step (between `install` and `migrate`) to
+   run `npm run build` before deploying. Follow-ups (not required for this to be done):
+   - Regenerate the app icons to match the new monochrome+accent design.
+   - Add `apple-touch-startup-image` splash screens.
 
 ## Smaller loose ends
 

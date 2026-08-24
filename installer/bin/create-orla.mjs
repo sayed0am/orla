@@ -8,7 +8,7 @@ import { existsSync } from "node:fs";
 import { join } from "node:path";
 import { HELP_TEXT, parseArgs } from "../src/cliArgs.mjs";
 import { cloneOrReuse } from "../src/clone.mjs";
-import { applyMigrations, deploy, npmCi } from "../src/deployStep.mjs";
+import { applyMigrations, deploy, npmBuild, npmCi } from "../src/deployStep.mjs";
 import { buildDoneScreen } from "../src/doneScreen.mjs";
 import {
 	printChecklistHeader,
@@ -212,7 +212,7 @@ async function main() {
 		printStepDone("secrets");
 	}
 
-	// --- install / migrate / deploy ---------------------------------------------------------
+	// --- install / build / migrate / deploy ---------------------------------------------------
 	if (steps.has("install")) {
 		printStepStart("install");
 		const result = await npmCi(runner, { dir });
@@ -221,6 +221,16 @@ async function main() {
 			process.exit(1);
 		}
 		printStepDone("install");
+	}
+
+	if (steps.has("build")) {
+		printStepStart("build");
+		const result = await npmBuild(runner, { dir });
+		if (!result.ok) {
+			printStepFailed("build", result.stderr, dir);
+			process.exit(1);
+		}
+		printStepDone("build");
 	}
 
 	if (steps.has("migrate")) {

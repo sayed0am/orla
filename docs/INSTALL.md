@@ -31,7 +31,7 @@ OpenRouter key, notification email), and provisions everything via `wrangler`:
 3. Creates a D1 database and writes its ID into `wrangler.jsonc`.
 4. Uploads three secrets to the Worker: `OPENROUTER_API_KEY`, `VAPID_PRIVATE_KEY` (for push
    notifications), and `SESSION_SECRET` (signs the passkey session cookie).
-5. Runs `npm ci`, applies the D1 migrations, and deploys.
+5. Runs `npm ci`, builds the frontend (`npm run build`), applies the D1 migrations, and deploys.
 6. Prints your Worker's URL.
 
 Run with `--dry-run` to print every command it would run without executing any of them, or
@@ -70,7 +70,7 @@ recurring cost that scales with use is OpenRouter LLM spend, which is visible in
 ## Updating
 
 ```sh
-cd orla && git pull && npm ci && npx wrangler d1 migrations apply ORLA_DB --remote && npx wrangler deploy
+cd orla && git pull && npm ci && npm run build && npx wrangler d1 migrations apply ORLA_DB --remote && npx wrangler deploy
 ```
 
 `ORLA_DB` is the D1 binding name (fixed by the installer, regardless of what you named your Worker or database) — no substitution needed even if you didn't use the default `orla` name.

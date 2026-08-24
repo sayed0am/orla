@@ -16,6 +16,11 @@ export function npmCi(
 	options: DirOptions,
 ): Promise<{ ok: boolean; stdout: string; stderr: string }>;
 
+export function npmBuild(
+	runner: Runner,
+	options: DirOptions,
+): Promise<{ ok: boolean; stdout: string; stderr: string }>;
+
 export function applyMigrations(
 	runner: Runner,
 	options: WranglerStepOptions,

@@ -10,7 +10,13 @@ import { describe, expect, it } from "vitest";
 
 import { parseArgs } from "../installer/src/cliArgs.mjs";
 import { isExistingOrlaCheckout } from "../installer/src/clone.mjs";
-import { applyMigrations, D1_BINDING, deploy, npmCi } from "../installer/src/deployStep.mjs";
+import {
+	applyMigrations,
+	D1_BINDING,
+	deploy,
+	npmBuild,
+	npmCi,
+} from "../installer/src/deployStep.mjs";
 import { buildResumeCommand } from "../installer/src/log.mjs";
 import { parseD1CreateOutput, parseDeployUrl, parseWhoami } from "../installer/src/parse.mjs";
 import { buildPlan, formatPlan } from "../installer/src/plan.mjs";
@@ -322,6 +328,7 @@ describe("step resume logic", () => {
 			"provision",
 			"secrets",
 			"install",
+			"build",
 			"migrate",
 			"deploy",
 			"zdr-pin",
@@ -337,6 +344,7 @@ describe("step resume logic", () => {
 		expect(stepsToRun("secrets")).toEqual([
 			"secrets",
 			"install",
+			"build",
 			"migrate",
 			"deploy",
 			"zdr-pin",
@@ -414,6 +422,9 @@ describe("--dry-run plan", () => {
 			"echo <VAPID_PRIVATE_KEY> | npx --yes wrangler@4.125.0 secret put VAPID_PRIVATE_KEY --name orla",
 			"echo <SESSION_SECRET> | npx --yes wrangler@4.125.0 secret put SESSION_SECRET --name orla",
 		]);
+
+		const buildStep = plan.find((s) => s.step === "build");
+		expect(buildStep?.commands).toEqual(["npm run build"]);
 
 		const migrateStep = plan.find((s) => s.step === "migrate");
 		expect(migrateStep?.commands).toEqual([
@@ -608,6 +619,18 @@ describe("step modules use an injectable runner instead of spawning directly", (
 		const result = await npmCi(runner, { dir });
 		expect(result.ok).toBe(true);
 		expect(calls[0]).toMatchObject({ command: "npm", args: ["ci"], options: { cwd: dir } });
+	});
+
+	it("npmBuild() runs `npm run build` in the checkout directory", async () => {
+		const dir = "/some/checkout";
+		const { runner, calls } = createMockRunner([{ code: 0, stdout: "", stderr: "" }]);
+		const result = await npmBuild(runner, { dir });
+		expect(result.ok).toBe(true);
+		expect(calls[0]).toMatchObject({
+			command: "npm",
+			args: ["run", "build"],
+			options: { cwd: dir },
+		});
 	});
 
 	it("applyMigrations() resolves the database by its binding, not the Worker/database name", async () => {

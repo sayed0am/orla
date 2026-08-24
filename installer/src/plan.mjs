@@ -45,6 +45,7 @@ export function buildPlan({
 			`echo <SESSION_SECRET> | ${wrangler} secret put SESSION_SECRET --name ${workerName}`,
 		],
 		install: ["npm ci"],
+		build: ["npm run build"],
 		// Resolved by the stable D1 binding, not the Worker/database name — see deployStep.mjs's
 		// D1_BINDING doc comment.
 		migrate: [`${wrangler} d1 migrations apply ${D1_BINDING} --remote`],
