@@ -351,6 +351,21 @@ button.chip {
 	color: var(--accent-blue);
 }
 
+.banner button {
+	display: inline-flex;
+	align-items: center;
+	min-height: 0;
+	padding: var(--s-1) var(--s-3);
+	margin-left: var(--s-2);
+	border: 1px solid var(--border);
+	border-radius: var(--r-pill);
+	background: transparent;
+	font-family: var(--font);
+	font-size: var(--fs-sm);
+	font-weight: 500;
+	cursor: pointer;
+}
+
 .hint {
 	color: var(--ink-2);
 	font-size: var(--fs-sm);

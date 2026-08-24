@@ -8,16 +8,31 @@ import SettingsScreen from "./features/settings/SettingsScreen";
 import { AuthProvider, useAuth } from "./hooks/useAuth";
 import { useHashRoute } from "./hooks/useHashRoute";
 import { usePendingActions } from "./hooks/usePendingActions";
+import { useSwUpdate } from "./hooks/useSwUpdate";
 import type { Route } from "./routes";
 import TabBar from "./ui/TabBar";
 
 const DEFAULT_HASH = "#capture";
 
 export default function App() {
+	const { showBanner: showUpdateBanner, reload } = useSwUpdate();
+
 	return (
-		<AuthProvider>
-			<Shell />
-		</AuthProvider>
+		<>
+			{showUpdateBanner ? (
+				<div className="banner glass">
+					<p>
+						Updated —{" "}
+						<button type="button" onClick={reload}>
+							reload
+						</button>
+					</p>
+				</div>
+			) : null}
+			<AuthProvider>
+				<Shell />
+			</AuthProvider>
+		</>
 	);
 }
 

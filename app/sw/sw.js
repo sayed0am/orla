@@ -6,27 +6,9 @@ import { flushOutbox } from "./outbox.js";
 // update — the fetch handler below revalidates every shell file against the network on
 // each request, so a new deploy is visible on the very next load.
 const CACHE_NAME = "orla-shell-v1";
-const SHELL_FILES = [
-	"/",
-	"/index.html",
-	"/manifest.webmanifest",
-	"/styles.css",
-	"/app.js",
-	"/capture.js",
-	"/chat.js",
-	"/markdown.js",
-	"/notes.js",
-	"/costs.js",
-	"/brief.js",
-	"/journal.js",
-	"/api.js",
-	"/outbox.js",
-	"/login.js",
-	"/webauthn.js",
-	"/icons/icon-192.png",
-	"/icons/icon-512.png",
-	"/icons/maskable-512.png",
-];
+// Injected at build time by the orlaSw() vite plugin (app/vite.config.ts), which replaces this
+// placeholder with the real precache manifest — static shell paths plus every hashed asset.
+const SHELL_FILES = self.__PRECACHE_MANIFEST__;
 
 self.addEventListener("install", (event) => {
 	event.waitUntil(
@@ -45,6 +27,21 @@ self.addEventListener("activate", (event) => {
 			await Promise.all(
 				names.filter((name) => name !== CACHE_NAME).map((name) => caches.delete(name)),
 			);
+
+			// Hashed bundles (/assets/*) from previous deploys otherwise accumulate forever, since
+			// stale-while-revalidate only ever adds cache entries and CACHE_NAME rarely changes.
+			// Prune any /assets/ entry in the current cache that isn't in the current manifest.
+			const cache = await caches.open(CACHE_NAME);
+			const requests = await cache.keys();
+			await Promise.all(
+				requests
+					.filter((request) => {
+						const pathname = new URL(request.url).pathname;
+						return pathname.startsWith("/assets/") && !SHELL_FILES.includes(pathname);
+					})
+					.map((request) => cache.delete(request)),
+			);
+
 			await self.clients.claim();
 		})(),
 	);

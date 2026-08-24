@@ -28,4 +28,21 @@ describe("static assets", () => {
 		const body = await res.text();
 		expect(body).toContain('"Orla"');
 	});
+
+	it("serves the service worker with the precache manifest injected", async () => {
+		const res = await SELF.fetch("http://example.com/sw.js");
+		expect(res.status).toBe(200);
+		const contentType = res.headers.get("content-type") ?? "";
+		expect(/application\/javascript|text\/javascript/.test(contentType)).toBe(true);
+		const body = await res.text();
+		expect(body).not.toContain("__PRECACHE_MANIFEST__");
+		expect(body).toContain('"/assets/');
+	});
+
+	it("serves the outbox module", async () => {
+		const res = await SELF.fetch("http://example.com/outbox.js");
+		expect(res.status).toBe(200);
+		const contentType = res.headers.get("content-type") ?? "";
+		expect(/application\/javascript|text\/javascript/.test(contentType)).toBe(true);
+	});
 });
