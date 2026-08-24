@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { escapeHtml, renderMarkdown } from "../public/markdown.js";
+import { escapeHtml, renderMarkdown } from "../app/src/lib/markdown.js";
 
 describe("escapeHtml", () => {
 	it("escapes the five reserved characters", () => {

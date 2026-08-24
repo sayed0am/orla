@@ -7,6 +7,7 @@ import LoginScreen from "./features/login/LoginScreen";
 import SettingsScreen from "./features/settings/SettingsScreen";
 import { AuthProvider, useAuth } from "./hooks/useAuth";
 import { useHashRoute } from "./hooks/useHashRoute";
+import { usePendingActions } from "./hooks/usePendingActions";
 import type { Route } from "./routes";
 import TabBar from "./ui/TabBar";
 
@@ -26,6 +27,11 @@ function Shell() {
 
 	// Passkey mode with no session, or still booting, doesn't count as "showing the app".
 	const showingApp = status !== null && !(status.mode === "passkey" && !status.authenticated);
+
+	// Fetched here (not inside ChatScreen) so the Chat tab's badge is right even when another tab
+	// is active — see app/src/hooks/usePendingActions.ts. Gated on `showingApp` so it doesn't fire
+	// (and 401) before login/boot resolves.
+	const pendingActions = usePendingActions(showingApp);
 
 	useEffect(() => {
 		if (showingApp && !window.location.hash) {
@@ -53,7 +59,7 @@ function Shell() {
 				</div>
 			) : null}
 			<ActiveScreen route={route} />
-			<TabBar active={route.tab} />
+			<TabBar active={route.tab} badge={pendingActions} />
 		</>
 	);
 }

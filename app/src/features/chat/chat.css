@@ -1,0 +1,343 @@
+/* Chat screen (PRD F1). Two-pane above 720px (sidebar + message pane), single pane at/below it —
+   port of public/styles.css's chat rules, restyled onto the glass design system. */
+
+.chat-view {
+	display: flex;
+	height: 100dvh;
+	padding-top: env(safe-area-inset-top);
+	max-width: 1040px;
+	margin: 0 auto;
+}
+
+/* Sidebar */
+.chat-list {
+	width: 280px;
+	flex-shrink: 0;
+	overflow-y: auto;
+	padding: var(--s-4);
+	border-right: 1px solid var(--border);
+}
+
+.chat-list-new {
+	width: 100%;
+	margin-bottom: var(--s-3);
+}
+
+.chat-list-items {
+	display: flex;
+	flex-direction: column;
+	gap: var(--s-1);
+}
+
+.chat-list-item {
+	display: block;
+	width: 100%;
+	text-align: left;
+	padding: var(--s-3);
+	border-radius: var(--r-md);
+	border: none;
+	background: transparent;
+	color: var(--ink);
+	font-family: var(--font);
+	font-size: var(--fs-sm);
+	cursor: pointer;
+}
+
+.chat-list-item.active {
+	background: var(--tint-lilac);
+	font-weight: 600;
+}
+
+.chat-list-hint {
+	padding: var(--s-3);
+}
+
+/* Message pane */
+.chat-main {
+	display: flex;
+	flex-direction: column;
+	flex: 1;
+	min-width: 0;
+	min-height: 0;
+}
+
+.chat-back-bar {
+	display: none;
+	padding: var(--s-3) var(--s-4) 0;
+}
+
+.chat-back-button {
+	display: inline-flex;
+	align-items: center;
+	gap: var(--s-1);
+	min-height: var(--tap);
+	padding: 0 var(--s-2);
+	border: none;
+	background: transparent;
+	color: var(--ink-2);
+	font-family: var(--font);
+	font-size: var(--fs-sm);
+	cursor: pointer;
+}
+
+.messages {
+	flex: 1;
+	min-height: 0;
+	overflow-y: auto;
+	display: flex;
+	flex-direction: column;
+	gap: var(--s-3);
+	padding: var(--s-4);
+}
+
+/* Bubbles */
+.bubble {
+	max-width: 85%;
+	padding: var(--s-3) var(--s-4);
+	word-break: break-word;
+}
+
+.bubble.assistant {
+	align-self: flex-start;
+	border-bottom-left-radius: var(--r-sm);
+}
+
+.bubble.user {
+	align-self: flex-end;
+	background: var(--tint-lilac);
+	border-color: transparent;
+	border-bottom-right-radius: var(--r-sm);
+	white-space: pre-wrap;
+}
+
+.bubble.error {
+	align-self: center;
+	max-width: 90%;
+	background: transparent;
+	border: 1px solid var(--danger);
+	border-radius: var(--r-md);
+	color: var(--danger);
+	white-space: pre-wrap;
+	font-size: var(--fs-sm);
+}
+
+/* Tool chips (PRD §12): small green-tinted chips inline in the transcript. */
+.chip-danger {
+	background: color-mix(in srgb, var(--danger) 16%, transparent);
+	border-color: transparent;
+	color: var(--danger);
+}
+
+/* Confirm cards (PRD §12 tap-to-confirm) */
+.confirm-card {
+	align-self: flex-start;
+	max-width: 90%;
+	padding: var(--s-4);
+	display: flex;
+	flex-direction: column;
+	gap: var(--s-2);
+}
+
+.confirm-card-name {
+	font-size: var(--fs-sm);
+	font-weight: 600;
+}
+
+.confirm-card-args {
+	margin: 0;
+	padding: var(--s-2) var(--s-3);
+	background: var(--bg);
+	border: 1px solid var(--border);
+	border-radius: var(--r-sm);
+	font-family: var(--font-mono);
+	font-size: var(--fs-xs);
+	overflow-x: auto;
+	white-space: pre;
+}
+
+.confirm-card-actions {
+	display: flex;
+	gap: var(--s-2);
+}
+
+.confirm-card-actions .btn {
+	flex: 1;
+}
+
+.confirm-card-result {
+	color: var(--ink-2);
+	font-size: var(--fs-sm);
+}
+
+/* Composer: floating glass pill pinned above the tab bar */
+.composer {
+	display: flex;
+	align-items: flex-end;
+	gap: var(--s-2);
+	margin: 0 var(--s-4) calc(var(--tap) + var(--s-4) * 2 + env(safe-area-inset-bottom));
+	padding: var(--s-2) var(--s-2) var(--s-2) var(--s-4);
+	border-radius: var(--r-pill);
+}
+
+.composer-input {
+	flex: 1;
+	min-width: 0;
+	border: none;
+	outline: none;
+	resize: none;
+	background: transparent;
+	color: var(--ink);
+	font-family: var(--font);
+	font-size: var(--fs-body);
+	line-height: 1.4;
+	padding: var(--s-2) 0;
+}
+
+.composer-input::placeholder {
+	color: var(--ink-2);
+}
+
+/* Assistant markdown content */
+.md > :first-child {
+	margin-top: 0;
+}
+
+.md > :last-child {
+	margin-bottom: 0;
+}
+
+.md p {
+	margin: var(--s-2) 0;
+}
+
+.md h1,
+.md h2,
+.md h3,
+.md h4,
+.md h5,
+.md h6 {
+	margin: var(--s-3) 0 var(--s-1);
+	line-height: 1.25;
+}
+
+.md h1 {
+	font-size: var(--fs-title);
+}
+
+.md h2 {
+	font-size: 1.05rem;
+}
+
+.md h3,
+.md h4,
+.md h5,
+.md h6 {
+	font-size: var(--fs-body);
+}
+
+.md a {
+	color: var(--accent-blue);
+}
+
+.md code {
+	font-family: var(--font-mono);
+	font-size: 0.9em;
+	background: var(--bg);
+	border: 1px solid var(--border);
+	border-radius: 4px;
+	padding: 0.1em 0.35em;
+}
+
+.md pre {
+	background: var(--bg);
+	border: 1px solid var(--border);
+	border-radius: var(--r-sm);
+	padding: var(--s-3);
+	overflow-x: auto;
+	margin: var(--s-2) 0;
+}
+
+.md pre code {
+	background: none;
+	border: none;
+	padding: 0;
+	font-size: 0.85em;
+	white-space: pre;
+}
+
+.md blockquote {
+	margin: var(--s-2) 0;
+	padding: 0.1rem var(--s-3);
+	border-left: 3px solid var(--border);
+	color: var(--ink-2);
+}
+
+.md ul,
+.md ol {
+	margin: var(--s-2) 0;
+	padding-left: 1.4rem;
+}
+
+.md li {
+	margin: 0.2rem 0;
+}
+
+.md li > ul,
+.md li > ol {
+	margin: 0.2rem 0;
+}
+
+.md hr {
+	border: none;
+	border-top: 1px solid var(--border);
+	margin: var(--s-3) 0;
+}
+
+.md table {
+	border-collapse: collapse;
+	margin: var(--s-2) 0;
+	font-size: 0.9em;
+	max-width: 100%;
+	overflow-x: auto;
+	display: block;
+}
+
+.md th,
+.md td {
+	border: 1px solid var(--border);
+	padding: 0.3rem var(--s-2);
+	text-align: left;
+}
+
+.md th {
+	background: var(--bg);
+	font-weight: 600;
+}
+
+@media (max-width: 720px) {
+	.chat-view {
+		position: relative;
+		height: 100dvh;
+	}
+
+	.chat-list {
+		position: absolute;
+		inset: 0;
+		width: 100%;
+		z-index: 5;
+		background: var(--bg);
+		border-right: none;
+	}
+
+	.chat-list.chat-list-hidden {
+		display: none;
+	}
+
+	.chat-main.chat-main-hidden {
+		display: none;
+	}
+
+	.chat-back-bar {
+		display: block;
+	}
+}
