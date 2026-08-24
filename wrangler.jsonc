@@ -8,7 +8,7 @@
 		"enabled": true
 	},
 	"assets": {
-		"directory": "./public",
+		"directory": "./dist",
 		"binding": "ASSETS"
 	},
 	"d1_databases": [
