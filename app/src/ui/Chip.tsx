@@ -1,7 +1,7 @@
 import type { MouseEventHandler, ReactNode } from "react";
 
 interface ChipProps {
-	tone?: "green" | "lilac";
+	tone?: "green" | "lilac" | "danger";
 	children?: ReactNode;
 	onClick?: MouseEventHandler<HTMLButtonElement | HTMLSpanElement>;
 }
