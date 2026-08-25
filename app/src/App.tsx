@@ -1,6 +1,7 @@
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 import CaptureScreen from "./features/capture/CaptureScreen";
 import ChatScreen from "./features/chat/ChatScreen";
+import ExportMenu from "./features/journal/ExportMenu";
 import JournalScreen from "./features/journal/JournalScreen";
 import LoginScreen from "./features/login/LoginScreen";
 import SettingsScreen from "./features/settings/SettingsScreen";
@@ -9,8 +10,9 @@ import { useHashRoute } from "./hooks/useHashRoute";
 import { usePendingActions } from "./hooks/usePendingActions";
 import { useSwUpdate } from "./hooks/useSwUpdate";
 import type { Route } from "./routes";
+import BackButton from "./ui/BackButton";
 import HomeShell from "./ui/HomeShell";
-import { IconJournal } from "./ui/icons";
+import { IconJournal, IconMenu } from "./ui/icons";
 
 const DEFAULT_HASH = "#capture";
 
@@ -97,21 +99,14 @@ function ActiveScreen({ route, pendingActions }: { route: Route; pendingActions:
 				</HomeShell>
 			);
 		case "chat":
-			return (
-				<HomeShell mode="chat" badge={pendingActions}>
-					<ChatScreen />
-				</HomeShell>
-			);
+			return <ChatMode pendingActions={pendingActions} />;
 		case "journal":
 			return (
 				<HomeShell
 					mode="journal"
 					badge={pendingActions}
-					leftSlot={
-						<a className="back-link" href="#capture">
-							‹ Back
-						</a>
-					}
+					leftSlot={<BackButton href="#capture" />}
+					rightSlot={<ExportMenu />}
 				>
 					<JournalScreen sub={route.sub} />
 				</HomeShell>
@@ -121,4 +116,29 @@ function ActiveScreen({ route, pendingActions }: { route: Route; pendingActions:
 		default:
 			return null;
 	}
+}
+
+// Chat mode's threads toggle lives in HomeShell's header leftSlot, so its open state is lifted
+// here and shared with ChatScreen (which renders both the message view and the Threads view).
+function ChatMode({ pendingActions }: { pendingActions: number }) {
+	const [threadsOpen, setThreadsOpen] = useState(false);
+
+	return (
+		<HomeShell
+			mode="chat"
+			badge={pendingActions}
+			leftSlot={
+				<button
+					type="button"
+					className="icon-btn"
+					aria-label="Threads"
+					onClick={() => setThreadsOpen(true)}
+				>
+					<IconMenu width={16} height={16} />
+				</button>
+			}
+		>
+			<ChatScreen threadsOpen={threadsOpen} onThreadsOpenChange={setThreadsOpen} />
+		</HomeShell>
+	);
 }

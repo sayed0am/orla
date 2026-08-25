@@ -16,18 +16,6 @@
 	min-height: 0;
 }
 
-.chat-threads-header {
-	display: flex;
-	align-items: center;
-	justify-content: space-between;
-	gap: var(--s-2);
-	padding: var(--s-2) 0;
-}
-
-.chat-threads-spacer {
-	width: 36px;
-}
-
 .chat-list {
 	flex: 1;
 	min-height: 0;
@@ -35,9 +23,9 @@
 	padding: var(--s-2) 0;
 }
 
-.chat-list-new {
-	width: 100%;
-	margin-bottom: var(--s-3);
+.chat-list-heading {
+	margin: 0 0 var(--s-2);
+	padding: 0 var(--s-3);
 }
 
 .chat-list-items {
@@ -76,11 +64,6 @@
 	flex: 1;
 	min-width: 0;
 	min-height: 0;
-}
-
-.chat-top-row {
-	display: flex;
-	padding: var(--s-2) 0;
 }
 
 .chat-idle {
@@ -179,51 +162,4 @@
 .confirm-card-result {
 	color: var(--ink-2);
 	font-size: var(--fs-sm);
-}
-
-/* Composer: floating glass pill at the bottom of the shell */
-.composer {
-	display: flex;
-	align-items: flex-end;
-	gap: var(--s-2);
-	margin: var(--s-2) 0 0;
-	padding: var(--s-2) var(--s-2) var(--s-2) var(--s-4);
-	border-radius: var(--r-pill);
-}
-
-/* Floating chrome sits over scrolling messages, so it needs a lighter fill and a stronger frost
-   than the base .glass surface to actually read as blurred glass. */
-.composer.glass {
-	background: var(--surface-float);
-}
-
-@supports (backdrop-filter: blur(1px)) or (-webkit-backdrop-filter: blur(1px)) {
-	.composer.glass {
-		-webkit-backdrop-filter: blur(24px) saturate(1.7);
-		backdrop-filter: blur(24px) saturate(1.7);
-	}
-}
-
-@supports not ((backdrop-filter: blur(1px)) or (-webkit-backdrop-filter: blur(1px))) {
-	.composer.glass {
-		background: var(--surface-strong);
-	}
-}
-
-.composer-input {
-	flex: 1;
-	min-width: 0;
-	border: none;
-	outline: none;
-	resize: none;
-	background: transparent;
-	color: var(--ink);
-	font-family: var(--font);
-	font-size: var(--fs-body);
-	line-height: 1.4;
-	padding: var(--s-2) 0;
-}
-
-.composer-input::placeholder {
-	color: var(--ink-2);
 }

@@ -1,4 +1,5 @@
 import type { ReactNode } from "react";
+import { IconChevronDown } from "./icons";
 
 interface GlassCardProps {
 	title?: string;
@@ -22,7 +23,12 @@ export default function GlassCard({
 	if (collapsible && title) {
 		return (
 			<details className={classes} open={defaultOpen}>
-				<summary className="card-title">{title}</summary>
+				<summary className="card-title">
+					{title}
+					<span className="card-chevron" aria-hidden="true">
+						<IconChevronDown width={18} height={18} />
+					</span>
+				</summary>
 				<div className="card-body">{children}</div>
 			</details>
 		);

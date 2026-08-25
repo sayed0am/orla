@@ -1,9 +1,9 @@
 /**
- * Journal's Organized sub-view: browse/search organized notes, filter by type/tag/day. React port
- * of `public/journal.js`'s organized pane.
+ * Journal's Organized sub-view: browse/search organized notes, filter by type/day — search covers
+ * both text and tags. React port of `public/journal.js`'s organized pane.
  */
 
-import type { ChangeEvent, KeyboardEvent } from "react";
+import type { ChangeEvent } from "react";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { apiFetch } from "../../lib/api";
 import Button from "../../ui/Button";
@@ -183,7 +183,6 @@ export default function OrganizedView() {
 
 	const [searchValue, setSearchValue] = useState("");
 	const [dayValue, setDayValue] = useState("");
-	const [tagValue, setTagValue] = useState("");
 	const [activeType, setActiveType] = useState<NoteType | "all">("all");
 
 	const entriesRef = useRef<JournalEntry[]>([]);
@@ -193,7 +192,6 @@ export default function OrganizedView() {
 	const searchDebounceRef = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
 
 	const activeTypeRef = useRef<NoteType | "all">("all");
-	const activeTagRef = useRef("");
 	const activeDayRef = useRef("");
 	const activeQueryRef = useRef("");
 
@@ -204,9 +202,6 @@ export default function OrganizedView() {
 		}
 		if (activeTypeRef.current !== "all") {
 			params.set("type", activeTypeRef.current);
-		}
-		if (activeTagRef.current) {
-			params.set("tag", activeTagRef.current);
 		}
 		if (activeDayRef.current) {
 			params.set("day", activeDayRef.current);
@@ -299,28 +294,11 @@ export default function OrganizedView() {
 		reload();
 	}
 
-	function commitTag(value: string) {
-		activeTagRef.current = value.trim();
-		reload();
-	}
-
-	function onTagChange(event: ChangeEvent<HTMLInputElement>) {
-		setTagValue(event.target.value);
-	}
-
-	function onTagBlur() {
-		commitTag(tagValue);
-	}
-
-	function onTagKeyDown(event: KeyboardEvent<HTMLInputElement>) {
-		if (event.key === "Enter") {
-			event.currentTarget.blur();
-		}
-	}
-
 	function onTagClickFromEntry(tag: string) {
-		setTagValue(tag);
-		commitTag(tag);
+		clearTimeout(searchDebounceRef.current);
+		setSearchValue(tag);
+		activeQueryRef.current = tag;
+		reload();
 	}
 
 	function onTypeClick(type: NoteType | "all") {
@@ -344,15 +322,6 @@ export default function OrganizedView() {
 					className="journal-filter-day"
 					value={dayValue}
 					onChange={onDayChange}
-				/>
-				<TextInput
-					type="text"
-					className="journal-filter-tag"
-					placeholder="Tag"
-					value={tagValue}
-					onChange={onTagChange}
-					onBlur={onTagBlur}
-					onKeyDown={onTagKeyDown}
 				/>
 			</div>
 			<div className="chip-row journal-type-chips">
@@ -381,10 +350,6 @@ export default function OrganizedView() {
 					</Button>
 				</div>
 			) : null}
-			<p className="hint journal-export">
-				<a href="/api/export">Export JSON</a> ·{" "}
-				<a href="/api/export?format=markdown">Export Markdown</a>
-			</p>
 		</div>
 	);
 }

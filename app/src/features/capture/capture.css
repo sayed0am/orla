@@ -1,5 +1,5 @@
-/* Jot mode (PRD F2, G1): brief pill, glass compose card, tag chips, private toggle, Save fab.
-   Rendered inside HomeShell's .home-body. */
+/* Jot mode (PRD F2, G1): brief pill, saved notes list, tag chips + private toggle, shared
+   Composer pill. Rendered inside HomeShell's .home-body. */
 
 .capture-view {
 	display: flex;
@@ -11,7 +11,9 @@
 }
 
 .capture-brief-pill {
-	display: block;
+	display: flex;
+	align-items: center;
+	gap: var(--s-1);
 	width: 100%;
 	text-align: left;
 	border-radius: var(--r-md);
@@ -22,22 +24,47 @@
 	cursor: pointer;
 }
 
-.capture-textarea {
+/* Saved notes list — Jot's analog of the chat transcript */
+.capture-notes {
 	flex: 1;
-	width: 100%;
-	min-height: 30vh;
-	border-radius: var(--r-lg);
-	outline: none;
-	resize: none;
-	color: var(--ink);
-	font-family: var(--font);
-	font-size: var(--fs-body);
-	line-height: 1.5;
-	padding: var(--s-4);
+	min-height: 0;
+	overflow-y: auto;
+	display: flex;
+	flex-direction: column;
+	gap: var(--s-2);
+	padding: var(--s-2) var(--s-1);
 }
 
-.capture-textarea::placeholder {
+.capture-note {
+	padding: var(--s-2) var(--s-2) var(--s-3);
+	border-bottom: 1px solid var(--border);
+}
+
+.capture-note:last-child {
+	border-bottom: none;
+}
+
+.capture-note-body {
+	font-size: var(--fs-body);
+	white-space: pre-wrap;
+	word-break: break-word;
+}
+
+.capture-note-meta {
+	display: flex;
+	gap: var(--s-2);
+	margin-top: var(--s-1);
 	color: var(--ink-2);
+	font-size: var(--fs-xs);
+}
+
+.capture-empty {
+	flex: 1;
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	color: var(--ink-2);
+	font-size: var(--fs-sm);
 }
 
 /* Visual-only for now: the outbox schema has no tags field yet. */
@@ -51,33 +78,32 @@
 	color: var(--ink-2);
 }
 
-.capture-private-toggle {
-	background: var(--surface);
-}
-
-.capture-footer {
-	display: flex;
+/* Private toggle button: sits at the right end of the tags row, apart from the tag chips */
+.capture-private {
+	display: inline-flex;
 	align-items: center;
-	gap: var(--s-3);
+	gap: var(--s-1);
+	min-height: 36px;
+	padding: 0 var(--s-3);
+	border: 1px solid var(--border);
+	border-radius: var(--r-sm);
+	background: var(--surface);
+	color: var(--ink-2);
+	font-family: var(--font);
+	font-size: var(--fs-sm);
+	cursor: pointer;
+	user-select: none;
 }
 
-.capture-hint {
-	white-space: nowrap;
-}
-
-@media (pointer: coarse) {
-	.capture-hint {
-		display: none;
-	}
+.capture-private.active {
+	background: color-mix(in srgb, var(--ink) 12%, transparent);
+	border-color: transparent;
+	color: var(--ink);
+	font-weight: 600;
 }
 
 .capture-spacer {
 	flex: 1;
-}
-
-.capture-status-row {
-	display: flex;
-	gap: var(--s-2);
 }
 
 .chip-danger {

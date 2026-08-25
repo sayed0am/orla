@@ -52,16 +52,14 @@ details.card > summary::-webkit-details-marker {
 	display: none;
 }
 
-details.card > summary::after {
-	content: "\2304"; /* ⌄ */
-	font-size: var(--fs-title);
-	line-height: 0.5;
+details.card > summary .card-chevron {
+	display: inline-flex;
 	color: var(--ink-2);
 	transition: transform 0.15s;
 }
 
-details.card[open] > summary::after {
-	transform: rotate(180deg) translateY(-0.35em);
+details.card[open] > summary .card-chevron {
+	transform: rotate(180deg);
 }
 
 .card-body {
@@ -130,6 +128,53 @@ details.card[open] > summary::after {
 	cursor: not-allowed;
 }
 
+/* Composer: floating glass pill at the bottom of the shell */
+.composer {
+	display: flex;
+	align-items: flex-end;
+	gap: var(--s-2);
+	margin: var(--s-2) 0 0;
+	padding: var(--s-2) var(--s-2) var(--s-2) var(--s-4);
+	border-radius: var(--r-pill);
+}
+
+/* Floating chrome sits over scrolling messages, so it needs a lighter fill and a stronger frost
+   than the base .glass surface to actually read as blurred glass. */
+.composer.glass {
+	background: var(--surface-float);
+}
+
+@supports (backdrop-filter: blur(1px)) or (-webkit-backdrop-filter: blur(1px)) {
+	.composer.glass {
+		-webkit-backdrop-filter: blur(24px) saturate(1.7);
+		backdrop-filter: blur(24px) saturate(1.7);
+	}
+}
+
+@supports not ((backdrop-filter: blur(1px)) or (-webkit-backdrop-filter: blur(1px))) {
+	.composer.glass {
+		background: var(--surface-strong);
+	}
+}
+
+.composer-input {
+	flex: 1;
+	min-width: 0;
+	border: none;
+	outline: none;
+	resize: none;
+	background: transparent;
+	color: var(--ink);
+	font-family: var(--font);
+	font-size: var(--fs-body);
+	line-height: 1.4;
+	padding: var(--s-2) 0;
+}
+
+.composer-input::placeholder {
+	color: var(--ink-2);
+}
+
 /* Fields */
 .field {
 	background: var(--surface);
@@ -172,21 +217,10 @@ textarea.field {
 	flex-shrink: 0;
 }
 
-/* "‹ Back" link */
-.back-link {
-	display: inline-flex;
-	align-items: center;
-	gap: 2px;
-	min-height: 36px;
-	padding: 0;
+/* Borderless icon button (e.g. the Threads close X) */
+.icon-btn-plain {
 	border: none;
 	background: transparent;
-	color: var(--ink);
-	font-family: var(--font);
-	font-size: var(--fs-sm);
-	font-weight: 500;
-	text-decoration: none;
-	cursor: pointer;
 }
 
 /* Small uppercase section label (Threads / Settings headers) */
@@ -198,7 +232,7 @@ textarea.field {
 	color: var(--ink-2);
 }
 
-/* Home shell: mode header (‹ Jot › + gear), body, dots */
+/* Home shell: body, dots */
 .home-shell {
 	display: flex;
 	flex-direction: column;
@@ -209,20 +243,28 @@ textarea.field {
 		calc(var(--s-3) + env(safe-area-inset-bottom)) calc(env(safe-area-inset-left) + var(--s-4));
 }
 
-.home-header {
+/* Shared screen header: left slot, centered content, right slot */
+.screen-header {
 	display: flex;
 	align-items: center;
 	gap: var(--s-2);
 	min-height: var(--tap);
 }
 
-.home-header-slot {
+.screen-header-slot {
 	flex: 1;
 	display: flex;
 	align-items: center;
+	gap: var(--s-2);
 }
 
-.home-header-right {
+.screen-header-center {
+	display: flex;
+	align-items: center;
+	justify-content: center;
+}
+
+.screen-header-right {
 	justify-content: flex-end;
 }
 
@@ -291,6 +333,12 @@ textarea.field {
 }
 
 /* Chips */
+.chip-row {
+	display: flex;
+	flex-wrap: wrap;
+	gap: var(--s-2);
+}
+
 .chip {
 	display: inline-flex;
 	align-items: center;

@@ -4,6 +4,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { apiFetch } from "../../lib/api";
 import Button from "../../ui/Button";
 import GlassCard from "../../ui/GlassCard";
+import { IconLock } from "../../ui/icons";
 
 const PAGE_LIMIT = 50;
 
@@ -29,7 +30,11 @@ function NoteCard({ note }: { note: RawNote }) {
 			<div className="note-body">{note.body}</div>
 			<div className="note-meta">
 				<span>{formatTimestamp(note.created_at)}</span>
-				{note.private ? <span title="Private">{"\u{1F512}"}</span> : null}
+				{note.private ? (
+					<span title="Private">
+						<IconLock width={14} height={14} />
+					</span>
+				) : null}
 			</div>
 		</GlassCard>
 	);

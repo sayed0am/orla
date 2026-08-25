@@ -7,8 +7,9 @@
 import { useCallback, useEffect, useState } from "react";
 import { useChatStream } from "../../hooks/useChatStream";
 import { apiFetch } from "../../lib/api";
-import { IconMenu } from "../../ui/icons";
-import Composer from "./Composer";
+import Composer from "../../ui/Composer";
+import { IconClose } from "../../ui/icons";
+import ScreenHeader from "../../ui/ScreenHeader";
 import ConversationList, {
 	type ConversationListState,
 	type ConversationSummary,
@@ -16,10 +17,14 @@ import ConversationList, {
 import MessageList from "./MessageList";
 import "./chat.css";
 
-export default function ChatScreen() {
+interface ChatScreenProps {
+	threadsOpen: boolean;
+	onThreadsOpenChange: (open: boolean) => void;
+}
+
+export default function ChatScreen({ threadsOpen, onThreadsOpenChange }: ChatScreenProps) {
 	const [listState, setListState] = useState<ConversationListState>({ status: "loading" });
 	const [activeId, setActiveId] = useState<string | null>(null);
-	const [threadsOpen, setThreadsOpen] = useState(false);
 	// A message typed before any conversation exists — sent as soon as one is created.
 	const [queued, setQueued] = useState<string | null>(null);
 
@@ -50,7 +55,7 @@ export default function ChatScreen() {
 
 	function openConversation(id: string) {
 		setActiveId(id);
-		setThreadsOpen(false);
+		onThreadsOpenChange(false);
 	}
 
 	async function createConversation(): Promise<void> {
@@ -92,13 +97,18 @@ export default function ChatScreen() {
 		return (
 			<div className="chat-view">
 				<div className="chat-threads">
-					<div className="chat-threads-header">
-						<button type="button" className="back-link" onClick={() => setThreadsOpen(false)}>
-							‹ Back
-						</button>
-						<span className="label">Threads</span>
-						<span className="chat-threads-spacer" />
-					</div>
+					<ScreenHeader
+						right={
+							<button
+								type="button"
+								className="icon-btn icon-btn-plain"
+								aria-label="Close threads"
+								onClick={() => onThreadsOpenChange(false)}
+							>
+								<IconClose width={20} height={20} />
+							</button>
+						}
+					/>
 					<ConversationList
 						state={listState}
 						activeId={activeId}
@@ -108,7 +118,6 @@ export default function ChatScreen() {
 							setQueued(null);
 							openConversation(id);
 						}}
-						onNew={() => void createConversation()}
 					/>
 				</div>
 			</div>
@@ -118,16 +127,6 @@ export default function ChatScreen() {
 	return (
 		<div className="chat-view">
 			<div className="chat-main">
-				<div className="chat-top-row">
-					<button
-						type="button"
-						className="icon-btn"
-						aria-label="Threads"
-						onClick={() => setThreadsOpen(true)}
-					>
-						<IconMenu width={16} height={16} />
-					</button>
-				</div>
 				{activeId !== null ? (
 					<MessageList items={items} activeId={activeId} onResolveConfirm={resolveConfirm} />
 				) : (

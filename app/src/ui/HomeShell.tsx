@@ -1,9 +1,11 @@
-/** Home shell for the three modes (Jot/Chat/Journal): ‹ › mode-cycling header with a settings
- * gear, the mode screen body, and the pill-dot indicator. Replaces the old bottom tab bar. */
+/** Home shell for the three modes (Jot/Chat/Journal): a ‹ › header that cycles between Jot and
+ * Chat, with Journal reached separately (book icon in, back link out); the mode screen body; and
+ * the pill-dot indicator. Replaces the old bottom tab bar. */
 
 import { type ReactNode, useEffect } from "react";
 import { IconChevronLeft, IconChevronRight, IconSettings } from "./icons";
 import ModeDots from "./ModeDots";
+import ScreenHeader from "./ScreenHeader";
 
 type Mode = "capture" | "chat" | "journal";
 
@@ -13,21 +15,29 @@ interface HomeShellProps {
 	badge?: number;
 	/** Header top-left control (book icon on Jot, back link on Journal). */
 	leftSlot?: ReactNode;
+	/** Extra header control rendered before the settings gear (e.g. Journal's export menu). */
+	rightSlot?: ReactNode;
 	children?: ReactNode;
 }
 
 const MODES = [
 	{ tab: "capture", label: "Jot" },
 	{ tab: "chat", label: "Chat" },
-	{ tab: "journal", label: "Journal" },
 ] as const;
 
-export default function HomeShell({ mode, badge = 0, leftSlot, children }: HomeShellProps) {
+const MODE_LABELS: Record<Mode, string> = { capture: "Jot", chat: "Chat", journal: "Journal" };
+
+export default function HomeShell({
+	mode,
+	badge = 0,
+	leftSlot,
+	rightSlot,
+	children,
+}: HomeShellProps) {
 	const index = Math.max(
 		0,
 		MODES.findIndex((m) => m.tab === mode),
 	);
-	const current = MODES[index] ?? MODES[0];
 	const prev = MODES[(index + MODES.length - 1) % MODES.length] ?? MODES[0];
 	const next = MODES[(index + 1) % MODES.length] ?? MODES[0];
 
@@ -39,32 +49,37 @@ export default function HomeShell({ mode, badge = 0, leftSlot, children }: HomeS
 		};
 	}, [mode]);
 
-	// Journal is the end of the cycle in the prototype: back link instead of arrows, no dots.
+	// Journal sits outside the Jot ↔ Chat cycle (book icon in, back button out): no arrows, no dots.
 	const showArrows = mode !== "journal";
 
 	return (
 		<div className="home-shell">
-			<header className="home-header">
-				<div className="home-header-slot">{leftSlot}</div>
-				<div className="mode-switcher">
-					{showArrows ? (
-						<a className="mode-arrow" href={`#${prev.tab}`} aria-label={`${prev.label} mode`}>
-							<IconChevronLeft width={18} height={18} />
+			<ScreenHeader
+				left={leftSlot}
+				center={
+					<div className="mode-switcher">
+						{showArrows ? (
+							<a className="mode-arrow" href={`#${prev.tab}`} aria-label={`${prev.label} mode`}>
+								<IconChevronLeft width={18} height={18} />
+							</a>
+						) : null}
+						<span className="mode-label">{MODE_LABELS[mode]}</span>
+						{showArrows ? (
+							<a className="mode-arrow" href={`#${next.tab}`} aria-label={`${next.label} mode`}>
+								<IconChevronRight width={18} height={18} />
+							</a>
+						) : null}
+					</div>
+				}
+				right={
+					<>
+						{rightSlot}
+						<a className="icon-btn" href="#settings" aria-label="Settings">
+							<IconSettings width={16} height={16} />
 						</a>
-					) : null}
-					<span className="mode-label">{current.label}</span>
-					{showArrows ? (
-						<a className="mode-arrow" href={`#${next.tab}`} aria-label={`${next.label} mode`}>
-							<IconChevronRight width={18} height={18} />
-						</a>
-					) : null}
-				</div>
-				<div className="home-header-slot home-header-right">
-					<a className="icon-btn" href="#settings" aria-label="Settings">
-						<IconSettings width={16} height={16} />
-					</a>
-				</div>
-			</header>
+					</>
+				}
+			/>
 			<div className="home-body">{children}</div>
 			{showArrows ? <ModeDots active={mode === "chat" ? "chat" : "capture"} badge={badge} /> : null}
 		</div>

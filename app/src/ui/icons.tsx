@@ -9,10 +9,18 @@ import {
 	IconSquareRoundedPlus,
 	IconSunrise,
 	IconX,
+	IconChevronDown as TablerIconChevronDown,
 	IconChevronLeft as TablerIconChevronLeft,
 	IconChevronRight as TablerIconChevronRight,
+	IconDeviceMobile as TablerIconDeviceMobile,
+	IconFileExport as TablerIconFileExport,
+	IconJson as TablerIconJson,
+	IconLockSquareRounded as TablerIconLockSquareRounded,
+	IconMarkdown as TablerIconMarkdown,
 	IconMenu2 as TablerIconMenu,
+	IconMoon as TablerIconMoon,
 	IconSettings as TablerIconSettings,
+	IconSunHigh as TablerIconSunHigh,
 } from "@tabler/icons-react";
 
 function wrap(Base: Icon, title: string): Icon {
@@ -33,3 +41,11 @@ export const IconClose = wrap(IconX, "Close");
 export const IconChevronLeft = wrap(TablerIconChevronLeft, "Previous");
 export const IconChevronRight = wrap(TablerIconChevronRight, "Next");
 export const IconMenu = wrap(TablerIconMenu, "Threads");
+export const IconChevronDown = wrap(TablerIconChevronDown, "Expand");
+export const IconMoon = wrap(TablerIconMoon, "Dark");
+export const IconSunHigh = wrap(TablerIconSunHigh, "Light");
+export const IconDeviceMobile = wrap(TablerIconDeviceMobile, "System");
+export const IconFileExport = wrap(TablerIconFileExport, "Export");
+export const IconMarkdown = wrap(TablerIconMarkdown, "Markdown");
+export const IconJson = wrap(TablerIconJson, "JSON");
+export const IconLock = wrap(TablerIconLockSquareRounded, "Private");

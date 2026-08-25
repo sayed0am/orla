@@ -2,10 +2,14 @@
  * (passkey mode only), MCP servers, and Costs sections. Everything but Appearance is a port of
  * sections that used to live in public/brief.js (F4) and public/costs.js. */
 
+import type { Icon } from "@tabler/icons-react";
 import { useEffect, useRef } from "react";
 import { useAuth } from "../../hooks/useAuth";
 import { type Theme, useTheme } from "../../hooks/useTheme";
+import BackButton from "../../ui/BackButton";
 import GlassCard from "../../ui/GlassCard";
+import { IconDeviceMobile, IconMoon, IconSunHigh } from "../../ui/icons";
+import ScreenHeader from "../../ui/ScreenHeader";
 import Costs from "./Costs";
 import Maintenance from "./Maintenance";
 import McpServers from "./McpServers";
@@ -18,10 +22,10 @@ interface SettingsScreenProps {
 	sub?: "raw" | "costs";
 }
 
-const THEME_OPTIONS: { value: Theme; label: string }[] = [
-	{ value: "system", label: "System" },
-	{ value: "light", label: "Light" },
-	{ value: "dark", label: "Dark" },
+const THEME_OPTIONS: { value: Theme; label: string; icon: Icon }[] = [
+	{ value: "system", label: "System", icon: IconDeviceMobile },
+	{ value: "light", label: "Light", icon: IconSunHigh },
+	{ value: "dark", label: "Dark", icon: IconMoon },
 ];
 
 export default function SettingsScreen({ sub }: SettingsScreenProps) {
@@ -38,17 +42,15 @@ export default function SettingsScreen({ sub }: SettingsScreenProps) {
 
 	return (
 		<div className="screen">
-			<div className="settings-topbar">
-				<a className="back-link" href="#capture">
-					‹ Back
-				</a>
-				<span className="label">Settings</span>
-			</div>
+			<ScreenHeader
+				left={<BackButton href="#capture" />}
+				center={<span className="label">Settings</span>}
+			/>
 			<div className="settings-sections">
 				<GlassCard title="Appearance">
 					<fieldset className="theme-swatches">
 						<legend className="visually-hidden">Theme</legend>
-						{THEME_OPTIONS.map(({ value, label }) => (
+						{THEME_OPTIONS.map(({ value, label, icon: ThemeIcon }) => (
 							<label
 								key={value}
 								className={["theme-swatch", theme === value ? "theme-swatch-active" : null]
@@ -62,7 +64,7 @@ export default function SettingsScreen({ sub }: SettingsScreenProps) {
 									checked={theme === value}
 									onChange={() => setTheme(value)}
 								/>
-								<span className={`theme-swatch-circle theme-swatch-${value}`} aria-hidden="true" />
+								<ThemeIcon width={20} height={20} />
 								{label}
 							</label>
 						))}

@@ -1,11 +1,11 @@
 /**
- * Message input (PRD F1). Port of chat.js's `#chat-input`/`#chat-send`: a floating glass pill with
- * an auto-growing (1–4 row) textarea and a circular send Fab, Cmd/Ctrl+Enter to send.
+ * Message input: a floating glass pill with an auto-growing (1–4 row) textarea and a circular
+ * send Fab, Cmd/Ctrl+Enter to send. Shared by Chat (message input) and Jot (note capture).
  */
 
 import { type KeyboardEvent, useEffect, useRef, useState } from "react";
-import Fab from "../../ui/Fab";
-import { IconSend } from "../../ui/icons";
+import Fab from "./Fab";
+import { IconSend } from "./icons";
 
 const MAX_ROWS = 4;
 
@@ -13,9 +13,14 @@ interface ComposerProps {
 	onSend: (text: string) => void;
 	/** Mirrors chat.js's `sendButton.disabled` — true only while a send is in flight. */
 	disabled: boolean;
+	placeholder?: string;
 }
 
-export default function Composer({ onSend, disabled }: ComposerProps) {
+export default function Composer({
+	onSend,
+	disabled,
+	placeholder = "Message Orla…",
+}: ComposerProps) {
 	const [value, setValue] = useState("");
 	const textareaRef = useRef<HTMLTextAreaElement>(null);
 
@@ -53,7 +58,7 @@ export default function Composer({ onSend, disabled }: ComposerProps) {
 			<textarea
 				ref={textareaRef}
 				className="composer-input"
-				placeholder="Message Orla…"
+				placeholder={placeholder}
 				rows={1}
 				value={value}
 				onChange={(e) => setValue(e.target.value)}

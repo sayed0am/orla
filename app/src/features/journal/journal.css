@@ -23,29 +23,39 @@
 	gap: var(--s-4);
 }
 
-/* Filters row */
+/* Filters row: search and day share a single line */
 .journal-filters {
 	display: flex;
-	flex-wrap: wrap;
+	flex-wrap: nowrap;
 	gap: var(--s-2);
 }
 
 .journal-filter-search {
-	flex: 1 1 200px;
-	min-width: 160px;
+	flex: 1 1 auto;
+	min-width: 0;
 }
 
 .journal-filter-day {
-	flex: 0 1 160px;
+	flex: 0 0 150px;
+	min-width: 0;
+	width: 150px;
 }
 
-.journal-filter-tag {
-	flex: 0 1 140px;
-}
-
-/* Type chip row */
+/* Type chip row: one line, scrolls horizontally when it overflows */
 .journal-type-chips {
-	flex-wrap: wrap;
+	display: flex;
+	flex-wrap: nowrap;
+	gap: var(--s-2);
+	overflow-x: auto;
+	scrollbar-width: none;
+}
+
+.journal-type-chips::-webkit-scrollbar {
+	display: none;
+}
+
+.journal-type-chips .chip {
+	flex-shrink: 0;
 }
 
 .journal-type-chip {
@@ -133,20 +143,45 @@
 	white-space: nowrap;
 }
 
-/* Load more / export */
+/* Load more */
 .journal-load-more-row {
 	display: flex;
 	justify-content: center;
 	margin: var(--s-4) 0;
 }
 
-.journal-export {
-	text-align: center;
-	margin-top: var(--s-3);
+/* Header export dropdown */
+.export-menu {
+	position: relative;
+	display: flex;
 }
 
-.journal-export a {
-	color: var(--ink-2);
+.export-menu-pop {
+	position: absolute;
+	top: calc(100% + var(--s-1));
+	right: 0;
+	z-index: 10;
+	display: flex;
+	flex-direction: column;
+	min-width: 160px;
+	padding: var(--s-1);
+	border-radius: var(--r-md);
+}
+
+.export-menu-item {
+	display: flex;
+	align-items: center;
+	gap: var(--s-2);
+	padding: var(--s-2) var(--s-3);
+	border-radius: var(--r-sm);
+	color: var(--ink);
+	font-size: var(--fs-sm);
+	text-decoration: none;
+	white-space: nowrap;
+}
+
+.export-menu-item:hover {
+	background: var(--surface-strong);
 }
 
 /* Raw notes */

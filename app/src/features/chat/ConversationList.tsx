@@ -1,6 +1,4 @@
-/** Chat sidebar (PRD F1): conversation list + "New" button. Port of chat.js's list pane. */
-
-import Button from "../../ui/Button";
+/** Chat sidebar (PRD F1): "Recents" heading + conversation list. Port of chat.js's list pane. */
 
 export interface ConversationSummary {
 	id: string;
@@ -19,7 +17,6 @@ interface ConversationListProps {
 	activeId: string | null;
 	hidden: boolean;
 	onSelect: (id: string) => void;
-	onNew: () => void;
 }
 
 function formatTimestamp(iso: string): string {
@@ -35,20 +32,12 @@ export default function ConversationList({
 	activeId,
 	hidden,
 	onSelect,
-	onNew,
 }: ConversationListProps) {
 	const classes = ["chat-list", hidden ? "chat-list-hidden" : null].filter(Boolean).join(" ");
 
 	return (
 		<div className={classes}>
-			<Button
-				variant="primary"
-				className="chat-list-new"
-				disabled={state.status === "unavailable"}
-				onClick={onNew}
-			>
-				New
-			</Button>
+			<p className="label chat-list-heading">Recents</p>
 			<div className="chat-list-items">
 				{state.status === "unavailable" ? (
 					<p className="hint chat-list-hint">{state.message}</p>
