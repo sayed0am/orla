@@ -3,6 +3,7 @@
  * the pill-dot indicator. Replaces the old bottom tab bar. */
 
 import { type ReactNode, useEffect } from "react";
+import { useSwipeNav } from "../hooks/useSwipeNav";
 import { IconChevronLeft, IconChevronRight, IconSettings } from "./icons";
 import ModeDots from "./ModeDots";
 import ScreenHeader from "./ScreenHeader";
@@ -52,6 +53,17 @@ export default function HomeShell({
 	// Journal sits outside the Jot ↔ Chat cycle (book icon in, back button out): no arrows, no dots.
 	const showArrows = mode !== "journal";
 
+	// Swipe matches the header arrows' semantics: left reveals `next`, right reveals `prev`.
+	const swipeRef = useSwipeNav(
+		showArrows,
+		() => {
+			window.location.hash = next.tab;
+		},
+		() => {
+			window.location.hash = prev.tab;
+		},
+	);
+
 	return (
 		<div className="home-shell">
 			<ScreenHeader
@@ -80,7 +92,9 @@ export default function HomeShell({
 					</>
 				}
 			/>
-			<div className="home-body">{children}</div>
+			<div className="home-body" ref={swipeRef}>
+				{children}
+			</div>
 			{showArrows ? <ModeDots active={mode === "chat" ? "chat" : "capture"} badge={badge} /> : null}
 		</div>
 	);

@@ -5,6 +5,7 @@
  */
 
 import { useEffect, useState } from "react";
+import { useSwipeNav } from "../../hooks/useSwipeNav";
 import SegmentedTabs from "../../ui/SegmentedTabs";
 import "./journal.css";
 import OrganizedView from "./OrganizedView";
@@ -25,8 +26,16 @@ export default function JournalScreen({ sub }: JournalScreenProps) {
 		setTab(sub === "raw" ? "raw" : "organized");
 	}, [sub]);
 
+	// Sub-tabs read as a left/right pair, not a cycle: swipe left goes Organized → Raw, swipe right
+	// goes Raw → Organized, and swiping past either end is a no-op (no wrap-around).
+	const swipeRef = useSwipeNav(
+		true,
+		() => setTab((current) => (current === "organized" ? "raw" : current)),
+		() => setTab((current) => (current === "raw" ? "organized" : current)),
+	);
+
 	return (
-		<div className="journal-view">
+		<div className="journal-view" ref={swipeRef}>
 			<SegmentedTabs
 				options={[
 					{ value: "organized", label: "Organized" },
